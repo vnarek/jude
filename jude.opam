@@ -1,0 +1,20 @@
+opam-version: "2.0"
+name: "jude"
+version: "0.1"
+synopsis: "Actor model implemented in OCaml - early alpha"
+maintainer: "Narek Vardanjan <vnarek@gmail.com>"
+authors: "Narek Vardanjan <vnarek@gmail.com>"
+license: "MIT"
+homepage: "https://github.com/vnarek/jude"
+bug-reports: "https://github.com/vnarek/jude/issues"
+dev-repo: "git://git@github.com:vnarek/jude.git"
+depends: [ 
+  "ocaml" {>= "4.08.1"}
+  "dune" {>= "2.0.0"}
+  "alcotest" {with-test}
+]
+build: [
+  ["dune" "subst"] {pinned}
+  ["dune" "build" "-p" name "-j" jobs]
+  ["dune" "runtest" "-p" name "-j" jobs] {with-test}
+]

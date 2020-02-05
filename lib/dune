@@ -1,0 +1,4 @@
+(library
+    (name jude)
+    (public_name jude)
+    (flags (:standard -safe-string)))
