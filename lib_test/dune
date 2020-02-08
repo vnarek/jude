@@ -1,0 +1,3 @@
+(tests
+    (names hello)
+    (libraries alcotest jude))
