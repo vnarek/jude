@@ -1,0 +1,3 @@
+(executables
+    (libraries luv jude)
+    (names ping fn_ping))

@@ -1,4 +1,6 @@
 (library
     (name jude)
     (public_name jude)
-    (flags (:standard -safe-string)))
+    (flags (:standard -safe-string))
+    (libraries luv bin_prot core_kernel)
+    (preprocess (pps ppx_bin_prot)))
