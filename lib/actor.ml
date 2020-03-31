@@ -1,8 +1,8 @@
-module type Actor = sig
-  type t
+module type Def = sig
+  type t [@@deriving bin_io]
 
   val receive: t -> unit
 end
 
-type 'a actor = (module Actor with type t = 'a)
+type 'a def = (module Def with type t = 'a)
 
