@@ -1,50 +1,46 @@
-
 open Jude
 
+module PingMsg = struct
+  type t = Ping of Pid.pid [@@deriving bin_io]
+end
+
+module PongMsg = struct
+  type t = Pong of Pid.pid [@@deriving bin_io]
+end
+
 module Ping = struct
-  type t = Ping [@@deriving bin_io]
+  open Actor
+  type t = PingMsg.t [@@deriving bin_io]
 
-  let receive = function
-    | Ping -> print_endline "got DO!"
+  let receive {name=name} = function
+    | PingMsg.Ping(x) -> print_endline "got DO!";
+      let pid = Pid.create x in
+
+      Pid.send pid (module PongMsg) (Pong name)
+
 end
 
+module Pong = struct
+  open Actor
+  type t = PongMsg.t  [@@deriving bin_io]
 
-module MakePong(P: Arbiter.PID with type t = Ping.t) = struct 
-  type t = Pong [@@deriving bin_io]
+  let receive {name=name} = function
+    | PongMsg.Pong(x) -> print_endline "got DO!";
+      let pid = Pid.create x in
 
-  let receive = function
-    | Pong -> 
-      print_endline "got pong!";
-      Luv.Time.sleep 5000;
-      P.send Ping.Ping
+      Pid.send pid (module PongMsg) (Pong name)
 end
-
-
-let create_pong (module P: Arbiter.PID with type t = Ping.t) =
-  let module T = struct
-    type t = Pong [@@deriving bin_io]
-
-    let receive = function
-      | Pong -> 
-        print_endline "got pong!";
-        Luv.Time.sleep 5000;
-        P.send Ping.Ping
-  end
-  in 
-  (module T: Arbiter.Def)
 
 let () = 
   Arbiter.init();
 
-  let (module P) = Arbiter.spawn (module Ping) "ping" in
-  let module Pong = MakePong(P) in
-  let (module P') = Arbiter.spawn (module Pong) "pong" in
+  let pid = Arbiter.spawn (module Ping) "ping" in
+  let pid' = Arbiter.spawn (module Pong) "pong" in
 
   ignore(Luv.Thread.create (
       fun() ->
         Luv.Time.sleep 2000;
-        print_endline "shiet";
-        P'.send Pong.Pong
+        Pid.send pid (module PingMsg) (PingMsg.Ping (Pid.get_pid pid'));
     ), ignore
     );
   Arbiter.run ()
