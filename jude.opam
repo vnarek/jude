@@ -9,7 +9,7 @@ homepage: "https://github.com/vnarek/jude"
 bug-reports: "https://github.com/vnarek/jude/issues"
 dev-repo: "git://git@github.com:vnarek/jude.git"
 depends: [ 
-  "ocaml" {>= "4.08.1"}
+  "ocaml" {>= "4.09.0"}
   "dune" {>= "2.0.0"}
   "alcotest" {with-test}
 ]
