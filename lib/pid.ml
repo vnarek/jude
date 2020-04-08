@@ -1,25 +1,20 @@
 open Core_kernel
 
-type pid = string [@@deriving bin_io]
-
 type t = {
-  pid: pid;
-  client: Luv.TCP.t
+  address: string;
+  port: int;
+  id: string
+} [@@deriving bin_io]
+
+let to_string {address; port; id} = 
+  Printf.sprintf "%s:%d/%s" address port id
+
+let adress_to_string {address; port; _} = Printf.sprintf "%s:%d" address port
+
+let id {id;_} = id
+
+let create id = {
+  address = Backend.server_ip;
+  port = Backend.server_port;
+  id = id
 }
-
-
-let create pid =
-  let client = Backend.create_client () in
-  Backend.connect client ignore;
-  {
-    pid = pid;
-    client = client
-  }
-
-let get_pid {pid = pid; client = _} = pid
-
-let send (type a) t (m: a Core_kernel.Binable.m) msg =
-  let msg_s = Binable.to_string m msg in
-  let name = get_pid t in
-  let buf = System.msg_to_buffer (System.Msg.ToActor (name, msg_s)) in
-  Luv.Stream.write t.client [buf] (fun _ _ -> ())

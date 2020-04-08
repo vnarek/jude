@@ -1,7 +1,18 @@
 type t = Luv.TCP.t
 
-let server_address = Luv.Sockaddr.ipv4 "127.0.0.1" 7000 |> Result.get_ok
-let client_address = Luv.Sockaddr.ipv4 "127.0.0.1" 7000 |> Result.get_ok
+let server_ip = "127.0.0.1"
+let server_port = 7000
+
+let server_address = Luv.Sockaddr.ipv4 server_ip server_port |> Result.get_ok
+
+let get_address_s address =
+  let address_s = Luv.Sockaddr.to_string address |> Option.get in
+  let port = Luv.Sockaddr.port address
+             |> Option.map (fun o -> Int.to_string o) in
+  match port with
+  | Some p -> String.concat ":" [address_s; p]
+  | None -> address_s
+
 
 
 let create_arbiter ?loop () = 
@@ -35,7 +46,7 @@ let create_client ?loop () =
   Luv.TCP.init () ?loop:loop |> Result.get_ok
 
 
-let connect client fn = Luv.TCP.connect client client_address begin function
+let connect client fn = Luv.TCP.connect client server_address begin function
     | Error e ->
       Printf.eprintf "Connect error: %s\n" (Luv.Error.strerror e)
     | Ok () -> fn client
