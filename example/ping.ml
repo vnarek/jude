@@ -13,7 +13,8 @@ module Ping = struct
   type t = PingMsg.t [@@deriving bin_io]
 
   let receive {name=name} = function
-    | PingMsg.Ping(x) -> print_endline "got DO!";
+    | PingMsg.Ping(x) -> print_endline "got PING!";
+      Luv.Time.sleep 1000;
       let pid = Pid.create x in
 
       Pid.send pid (module PongMsg) (Pong name)
@@ -25,10 +26,11 @@ module Pong = struct
   type t = PongMsg.t  [@@deriving bin_io]
 
   let receive {name=name} = function
-    | PongMsg.Pong(x) -> print_endline "got DO!";
+    | PongMsg.Pong(x) -> print_endline "got PONG!";
+      Luv.Time.sleep 1000;
       let pid = Pid.create x in
 
-      Pid.send pid (module PongMsg) (Pong name)
+      Pid.send pid (module PingMsg) (Ping name)
 end
 
 let () = 

@@ -30,13 +30,6 @@ type 'a t = {
   mutable closed: bool ref
 }
 
-(*
-val create: unit -> 'a t
-val send: 'a -> unit
-val recv: unit -> 'a option
-val close: unit -> unit
-*)
-
 let create () = 
   let mux = Luv.Mutex.init () |> Result.get_ok in
   let cond = Luv.Condition.init () |> Result.get_ok in
@@ -50,9 +43,6 @@ let create () =
 let send t a = 
   SyncQueue.send t.queue a;
   Luv.Condition.signal t.cond
-
-(*let rec wait_until cond mux f =*)
-
 
 let rec recv t =
   Luv.Mutex.lock t.mux;
