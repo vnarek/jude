@@ -1,5 +1,5 @@
 type ctx = {
-  name: string
+  selfPid: Pid.t
 }
 
 module type Def = sig
@@ -21,7 +21,7 @@ let receive (type a) (t: a def) mailbox buf =
             |> Core_kernel.Binable.of_string (module T) in
   Mailbox.push mailbox msg
 
-let create (type a) name (t: a def) =
+let create (type a) pid (t: a def) =
   let (module T) = t in
   let mailbox = Mailbox.create () |> Result.get_ok (*FIXME pls*)in
   let module M = struct
@@ -29,5 +29,5 @@ let create (type a) name (t: a def) =
     let step () = 
       Mailbox.take mailbox 
       |> Option.get
-      |> T.receive {name=name}
+      |> T.receive {selfPid = pid}
   end in (module M: Instance)

@@ -1,23 +1,21 @@
 open Jude
 
 module PingMsg = struct
-  type t = Ping of Pid.pid [@@deriving bin_io]
+  type t = Ping of Pid.t [@@deriving bin_io]
 end
 
 module PongMsg = struct
-  type t = Pong of Pid.pid [@@deriving bin_io]
+  type t = Pong of Pid.t [@@deriving bin_io]
 end
 
 module Ping = struct
   open Actor
   type t = PingMsg.t [@@deriving bin_io]
 
-  let receive {name=name} = function
-    | PingMsg.Ping(x) -> print_endline "got PING!";
+  let receive {selfPid;_} = function
+    | PingMsg.Ping(senderPid) -> print_endline "got PING!";
       Luv.Time.sleep 1000;
-      let pid = Pid.create x in
-
-      Pid.send pid (module PongMsg) (Pong name)
+      Arbiter.send senderPid (module PongMsg) (Pong selfPid)
 
 end
 
@@ -25,12 +23,10 @@ module Pong = struct
   open Actor
   type t = PongMsg.t  [@@deriving bin_io]
 
-  let receive {name=name} = function
-    | PongMsg.Pong(x) -> print_endline "got PONG!";
+  let receive {selfPid;_} = function
+    | PongMsg.Pong(senderPid) -> print_endline "got PONG!";
       Luv.Time.sleep 1000;
-      let pid = Pid.create x in
-
-      Pid.send pid (module PingMsg) (Ping name)
+      Arbiter.send senderPid (module PingMsg) (Ping selfPid)
 end
 
 let () = 
@@ -42,7 +38,7 @@ let () =
   ignore(Luv.Thread.create (
       fun() ->
         Luv.Time.sleep 2000;
-        Pid.send pid (module PingMsg) (PingMsg.Ping (Pid.get_pid pid'));
+        Arbiter.send pid (module PingMsg) (PingMsg.Ping pid');
     ), ignore
     );
   Arbiter.run ()

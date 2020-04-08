@@ -1,5 +1,5 @@
 type ctx = { 
-  name : string 
+  selfPid : Pid.t
 }
 
 module type Def = sig
@@ -15,4 +15,4 @@ module type Instance = sig
 end
 
 val receive : 'a def -> 'a Mailbox.t -> Luv.Buffer.t -> unit
-val create : string -> 'a def -> (module Instance)
+val create : Pid.t -> 'a def -> (module Instance)
