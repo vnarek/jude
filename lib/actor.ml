@@ -2,14 +2,14 @@ type ctx = {
   selfPid: Pid.t
 }
 
-module type Def = sig
+module type DEF = sig
   type t [@@deriving bin_io]
   val receive: ctx -> t -> unit
 end
 
-type 'a def = (module Def with type t = 'a)
+type 'a def = (module DEF with type t = 'a)
 
-module type Instance = sig
+module type INSTANCE = sig
   val receive: Luv.Buffer.t -> unit
   val step: unit -> unit
 end
@@ -30,4 +30,4 @@ let create (type a) pid (t: a def) =
       Mailbox.take mailbox 
       |> Option.get
       |> T.receive {selfPid = pid}
-  end in (module M: Instance)
+  end in (module M: INSTANCE)
