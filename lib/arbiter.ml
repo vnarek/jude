@@ -9,7 +9,7 @@ module type ARBITER = sig
   val find_instance : string -> (module Actor.INSTANCE)
   val init : unit -> unit
   val run : unit -> unit
-  val spawn : 'a Actor.def -> string -> Pid.t
+  val spawn : ?id:string -> 'a Actor.def -> Pid.t
   val send : Pid.t -> 'a Core_kernel.Binable.m -> 'a -> unit
 end
 
@@ -66,7 +66,7 @@ module Make(B: Backend.B): ARBITER = struct
     let _ = Luv.Thread.create (actor_loop) (* Join this later *) in
     Luv.Loop.run () |> ignore
 
-  let spawn actor id = 
+  let spawn ?(id=Id.gen()) actor = 
     let pid = Pid.create B.server_ip B.server_port id in
     let instance = Actor.create pid actor in
     register instance id; (* Lepší jako zpráva actoru arbiter *)
