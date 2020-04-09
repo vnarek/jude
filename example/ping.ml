@@ -1,5 +1,12 @@
 open Jude
 
+module Backend = Jude.Backend.Make(struct
+    let server_ip = "127.0.0.1"
+    let server_port = 7000
+  end)
+
+module Arbiter = Jude.Arbiter.Make(Backend)
+
 module PingMsg = struct
   type t = Ping of Pid.t [@@deriving bin_io]
 end

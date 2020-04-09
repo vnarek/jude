@@ -13,8 +13,8 @@ let adress_to_string {address; port; _} = Printf.sprintf "%s:%d" address port
 
 let id {id;_} = id
 
-let create id = {
-  address = Backend.server_ip;
-  port = Backend.server_port;
+let create ip port id = {
+  address = ip;
+  port = port;
   id = id
 }
