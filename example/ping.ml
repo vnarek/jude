@@ -39,8 +39,8 @@ end
 let () = 
   Arbiter.init();
 
-  let pid = Arbiter.spawn (module Ping) "ping" in
-  let pid' = Arbiter.spawn (module Pong) "pong" in
+  let pid = Arbiter.spawn (module Ping) in
+  let pid' = Arbiter.spawn (module Pong) in
 
   ignore(Luv.Thread.create (
       fun() ->
