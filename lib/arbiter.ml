@@ -1,5 +1,4 @@
 type 'a arbiter = {
-  server : Luv.TCP.t;
   actors : (string, (module Actor.INSTANCE)) Hashtbl.t;
   mux : Luv.Rwlock.t;
   actor_ch : (module Actor.INSTANCE) Channel.t;
@@ -17,20 +16,10 @@ module Make(B: Backend.B): ARBITER = struct
   let arb =
     let mux = Luv.Rwlock.init () |> Result.get_ok in
     {
-      server = B.create_arbiter ();
       actors = Hashtbl.create 100;
       mux = mux;
       actor_ch = Channel.create ();
     }
-
-  (*let get_arbiter pid = (* Todo lock this *)
-    let addr_port = Pid.address_port pid in
-    match Hashtbl.find_opt arb.arbiters addr_port with
-    | Some arb -> arb
-    | None ->
-      let client = B.connect addr_port ignore in
-      Hashtbl.add arb.arbiters addr_port client;
-      client*)
 
 
   let register instance name =
@@ -57,7 +46,7 @@ module Make(B: Backend.B): ARBITER = struct
     Channel.send arb.actor_ch (module I)
 
   let init () =
-    B.listen arb.server 
+    B.listen
       (fun conn buf ->
          match System.msg_from_buffer buf with
          | Syn -> 
@@ -86,9 +75,9 @@ module Make(B: Backend.B): ARBITER = struct
   type location = Local | Remote
 
   let check_location pid =
-    let addr_b = B.server_address_s in
-    let addr_pid = Pid.adress_to_string pid in
-    if String.equal addr_b addr_pid then
+    let addr_b = B.server_ip, B.server_port in
+    let addr_pid = Pid.address_port pid in
+    if addr_b == addr_pid then
       Local
     else
       Remote
