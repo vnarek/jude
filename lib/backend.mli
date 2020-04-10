@@ -12,12 +12,9 @@ module type B = sig
   val server_port : int
   val server_address : Luv.Sockaddr.t
   val server_address_s : string
-  val create_arbiter : ?loop:Luv__.Loop.t -> unit -> Luv.TCP.t
-  val listen :
-    ?loop:Luv__.Loop.t ->
-    [ `TCP ] Luv.Stream.t -> (Luv.TCP.t -> Luv__.Buffer.t -> unit) -> unit
-  val create_client : ?loop:Luv__.Loop.t -> unit -> Luv.TCP.t
-  val connect : Luv.TCP.t -> (Luv.TCP.t -> unit) -> unit
+  val create_arbiter : unit -> Luv.TCP.t
+  val listen : Luv.TCP.t -> (Luv.TCP.t -> Luv__.Buffer.t -> unit) -> unit
+  val connect : (string * int) -> (Luv.TCP.t -> unit) -> Luv.TCP.t
 end
 
 module Make : functor (C : CONFIG) -> B

@@ -1,4 +1,4 @@
 (executables
     (libraries luv jude)
-    (names ping)
+    (names test ping pong)
     (preprocess (pps ppx_bin_prot)))

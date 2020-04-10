@@ -15,12 +15,9 @@ module type B = sig
   val server_port : int
   val server_address : Luv.Sockaddr.t
   val server_address_s : string
-  val create_arbiter : ?loop:Luv__.Loop.t -> unit -> Luv.TCP.t
-  val listen :
-    ?loop:Luv__.Loop.t ->
-    [ `TCP ] Luv.Stream.t -> (Luv.TCP.t -> Luv__.Buffer.t -> unit) -> unit
-  val create_client : ?loop:Luv__.Loop.t -> unit -> Luv.TCP.t
-  val connect : Luv.TCP.t -> (Luv.TCP.t -> unit) -> unit
+  val create_arbiter : unit -> Luv.TCP.t
+  val listen : [ `TCP ] Luv.Stream.t -> (Luv.TCP.t -> Luv__.Buffer.t -> unit) -> unit
+  val connect : (string * int) -> (Luv.TCP.t -> unit) -> Luv.TCP.t
 end
 
 module Make(C: CONFIG): B = struct
@@ -33,17 +30,17 @@ module Make(C: CONFIG): B = struct
 
   let server_address_s = String.concat ":" [C.server_ip; Int.to_string C.server_port]
 
-  let create_arbiter ?loop () = 
-    let server = Luv.TCP.init ?loop () |> Result.get_ok in
+  let create_arbiter () = 
+    let server = Luv.TCP.init () |> Result.get_ok in
     let _ = Luv.TCP.bind server server_address in
     server
 
-  let listen ?loop server fn = 
+  let listen server fn = 
     Luv.Stream.listen server begin function
       | Error e ->
         Printf.eprintf "Listen error: %s\n" (Luv.Error.strerror e)
       | Ok () ->
-        let client = Luv.TCP.init ?loop () |> Result.get_ok in
+        let client = Luv.TCP.init () |> Result.get_ok in
 
         match Luv.Stream.accept ~server ~client with
         | Error e ->
@@ -60,14 +57,15 @@ module Make(C: CONFIG): B = struct
               fn client buffer
           end;
     end
-  let create_client ?loop () =
-    Luv.TCP.init () ?loop:loop |> Result.get_ok
 
-
-  let connect client fn = Luv.TCP.connect client server_address begin function
-      | Error e ->
-        Printf.eprintf "Connect error: %s\n" (Luv.Error.strerror e)
-      | Ok () -> fn client
-    end
-
+  let connect (address, port) fn =
+    let client = Luv.TCP.init () |> Result.get_ok in
+    let sock_addr = Luv.Sockaddr.ipv4 address port |> Result.get_ok in 
+    Luv.TCP.connect client sock_addr (fun e -> 
+        match e with
+        | Error e ->
+          Printf.printf "Connect error: %s\n" (Luv.Error.strerror e)
+        | Ok () ->
+          fn client);
+    client
 end
