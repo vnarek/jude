@@ -23,14 +23,16 @@ module Ping = struct
     | PingMsg.Ping(senderPid) -> print_endline "got PING!";
       Luv.Time.sleep 1000;
       Arbiter.send senderPid (module PongMsg) (Pong selfPid)
-
 end
 
-module Pong = struct
+module Pong() = struct
   open Actor
   type t = PongMsg.t  [@@deriving bin_io]
 
-  let receive {selfPid;_} = function
+  let receive {selfPid;_} =
+    let pid = Arbiter.spawn (module Ping) in
+    Arbiter.send pid (module PingMsg) (PingMsg.Ping selfPid);
+    function
     | PongMsg.Pong(senderPid) -> print_endline "got PONG!";
       Luv.Time.sleep 1000;
       Arbiter.send senderPid (module PingMsg) (Ping selfPid)
@@ -38,9 +40,5 @@ end
 
 let () = 
   Arbiter.init();
-
-  let pid = Arbiter.spawn (module Ping) in
-  let pid' = Arbiter.spawn (module Pong) in
-
-  Arbiter.send pid (module PingMsg) (PingMsg.Ping pid');
+  let _ = Arbiter.spawn (module Pong()) in
   Arbiter.run ()
