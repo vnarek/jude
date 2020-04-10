@@ -5,7 +5,6 @@ type 'a arbiter = {
 }
 
 module type ARBITER = sig
-  val find_instance : string -> (module Actor.INSTANCE)
   val init : unit -> unit
   val run : unit -> unit
   val spawn : 'a Actor.def -> Pid.t
@@ -29,8 +28,7 @@ module Make(B: Backend.B): ARBITER = struct
 
   let find_instance name =
     Luv.Rwlock.rdlock arb.mux;
-    let instance = Hashtbl.find_opt arb.actors name 
-                   |> Option.get in
+    let instance = Hashtbl.find_opt arb.actors name in
     Luv.Rwlock.rdunlock arb.mux;
     instance
 
@@ -40,10 +38,12 @@ module Make(B: Backend.B): ARBITER = struct
     actor_loop()
 
   let send_localy pid msg_s = 
-    let (module I) = find_instance pid in
-    Luv.Buffer.from_string msg_s
-    |> I.receive;
-    Channel.send arb.actor_ch (module I)
+    find_instance pid
+    |> Option.iter (fun (module I: Actor.INSTANCE) ->
+        Luv.Buffer.from_string msg_s
+        |> I.receive;
+        Channel.send arb.actor_ch (module I)
+      )
 
   let init () =
     B.listen
@@ -77,7 +77,7 @@ module Make(B: Backend.B): ARBITER = struct
   let check_location pid =
     let addr_b = B.server_ip, B.server_port in
     let addr_pid = Pid.address_port pid in
-    if addr_b == addr_pid then
+    if addr_b = addr_pid then
       Local
     else
       Remote

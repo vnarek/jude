@@ -1,5 +1,4 @@
 module type ARBITER = sig
-  val find_instance : string -> (module Actor.INSTANCE)
   val init : unit -> unit
   val run : unit -> unit
   val spawn : 'a Actor.def -> Pid.t

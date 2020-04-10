@@ -42,10 +42,5 @@ let () =
   let pid = Arbiter.spawn (module Ping) in
   let pid' = Arbiter.spawn (module Pong) in
 
-  ignore(Luv.Thread.create (
-      fun() ->
-        Luv.Time.sleep 2000;
-        Arbiter.send pid (module PingMsg) (PingMsg.Ping pid');
-    ), ignore
-    );
+  Arbiter.send pid (module PingMsg) (PingMsg.Ping pid');
   Arbiter.run ()
