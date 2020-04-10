@@ -18,6 +18,7 @@ module type B = sig
   val create_arbiter : unit -> Luv.TCP.t
   val listen : [ `TCP ] Luv.Stream.t -> (Luv.TCP.t -> Luv__.Buffer.t -> unit) -> unit
   val connect : (string * int) -> (Luv.TCP.t -> unit) -> Luv.TCP.t
+  val send: (string * int) -> Luv.Buffer.t -> unit
 end
 
 module Make(C: CONFIG): B = struct
@@ -25,6 +26,51 @@ module Make(C: CONFIG): B = struct
   include C
 
   type t = Luv.TCP.t
+
+  type state = {
+    clients: ((string * int), Luv.TCP.t) Hashtbl.t;
+    send_ch: ((string * int) * Luv.Buffer.t) Channel.t
+  }
+
+  let state = {
+    clients = Hashtbl.create 100;
+    send_ch = Channel.create ()
+  }
+
+  let connect (address, port) fn =
+    let client = Luv.TCP.init () |> Result.get_ok in
+    let sock_addr = Luv.Sockaddr.ipv4 address port |> Result.get_ok in 
+    Luv.TCP.connect client sock_addr (fun e -> 
+        match e with
+        | Error e ->
+          Printf.printf "Connect error: %s\n" (Luv.Error.strerror e)
+        | Ok () ->
+          fn client);
+    client
+
+  let async_send_to_client =
+    Luv.Async.init (fun _ ->
+        Channel.consume state.send_ch (fun (destination, buf) ->
+            let client = match Hashtbl.find_opt state.clients destination with
+              | Some client -> client
+              | None ->
+                let client = connect destination ignore in
+                Hashtbl.add state.clients destination client;
+                client
+            in
+            Luv.Stream.write client [buf] (fun e _ -> 
+                match e with 
+                | Error x -> print_endline (Luv.Error.strerror x) 
+                | Ok () -> print_endline "no error");
+          );
+      ) |> Result.get_ok
+
+  let print_err r = Luv.Error.strerror r |> print_endline
+
+  let send destination buf = 
+    Channel.send state.send_ch (destination, buf);
+    Luv.Async.send async_send_to_client |> Result.iter_error print_err
+
 
   let server_address = Luv.Sockaddr.ipv4 C.server_ip C.server_port |> Result.get_ok
 
@@ -57,15 +103,4 @@ module Make(C: CONFIG): B = struct
               fn client buffer
           end;
     end
-
-  let connect (address, port) fn =
-    let client = Luv.TCP.init () |> Result.get_ok in
-    let sock_addr = Luv.Sockaddr.ipv4 address port |> Result.get_ok in 
-    Luv.TCP.connect client sock_addr (fun e -> 
-        match e with
-        | Error e ->
-          Printf.printf "Connect error: %s\n" (Luv.Error.strerror e)
-        | Ok () ->
-          fn client);
-    client
 end

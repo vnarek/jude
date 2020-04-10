@@ -26,13 +26,12 @@ let () =
   Arbiter.init();
 
   let pid = Arbiter.spawn (module Ping) in
-  let pid' = Pid.create ~id:(Uuidm.of_string "7436b958-28b6-461e-8d60-4752a2998d0e" |> Stdlib.Option.get |> Uuidm.to_bytes) "127.0.0.1" 7001 in (* run pong.exe first and fill here *)
+  let pid' = Pid.create ~id:(Uuidm.of_string "9d7d337d-9677-4de5-96e8-8e88913c051c" |> Stdlib.Option.get |> Uuidm.to_bytes) "127.0.0.1" 7001 in (* run pong.exe first and fill here *)
 
   ignore(Luv.Thread.create (
       fun() ->
         Luv.Time.sleep 2000;
         Arbiter.send pid (module PingMsg) (PingMsg.Ping pid');
-        (*Luv.Stream.write w [Luv.Buffer.from_string "Hello mate"] (fun e _ -> Result.get_error e |> Luv.Error.strerror |> print_endline);*)
         ()
     ), ignore
     );

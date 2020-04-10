@@ -59,3 +59,8 @@ let close t =
   Luv.Mutex.lock t.mux;
   t.closed := true;
   Luv.Mutex.unlock t.mux
+
+let rec consume t fn =
+  match SyncQueue.pop t.queue with
+  | Some(x) -> fn x; consume t fn
+  | None -> ()

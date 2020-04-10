@@ -1,7 +1,6 @@
 type 'a arbiter = {
   server : Luv.TCP.t;
   actors : (string, (module Actor.INSTANCE)) Hashtbl.t;
-  arbiters: ((string * int), Luv.TCP.t) Hashtbl.t;
   mux : Luv.Rwlock.t;
   actor_ch : (module Actor.INSTANCE) Channel.t;
 }
@@ -20,19 +19,18 @@ module Make(B: Backend.B): ARBITER = struct
     {
       server = B.create_arbiter ();
       actors = Hashtbl.create 100;
-      arbiters = Hashtbl.create 100;
       mux = mux;
       actor_ch = Channel.create ();
     }
 
-  let get_arbiter pid = (* Todo lock this *)
+  (*let get_arbiter pid = (* Todo lock this *)
     let addr_port = Pid.address_port pid in
     match Hashtbl.find_opt arb.arbiters addr_port with
     | Some arb -> arb
     | None ->
       let client = B.connect addr_port ignore in
       Hashtbl.add arb.arbiters addr_port client;
-      client
+      client*)
 
 
   let register instance name =
@@ -103,13 +101,8 @@ module Make(B: Backend.B): ARBITER = struct
     |Local ->
       send_localy id msg_s 
     |Remote ->
-      let handle = Luv.Async.init (fun _ ->
-          let buf = System.msg_to_buffer (System.Msg.ToActor (id, msg_s)) in
-          let arbiter = get_arbiter pid in
-          Luv.Stream.write arbiter [buf] (fun e _ -> 
-              match e with 
-              | Error x -> print_endline (Luv.Error.strerror x) 
-              | Ok () -> print_endline "no error");
-        ) |> Result.get_ok in
-      ignore(Luv.Async.send handle)
+      let buf = System.msg_to_buffer (System.Msg.ToActor (id, msg_s)) in
+      let destination = Pid.address_port pid in
+      B.send destination buf;
+      print_endline "sended";
 end

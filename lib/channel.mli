@@ -4,3 +4,4 @@ val create: unit -> 'a t
 val send: 'a t -> 'a -> unit
 val recv: 'a t -> 'a option
 val close: 'a t -> unit
+val consume: 'a t -> ('a -> unit) -> unit
