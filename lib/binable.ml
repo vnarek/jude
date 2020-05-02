@@ -7,11 +7,25 @@ let to_bytes (type a) (m: a m) msg =
   let len = Bin.bin_write_t buf ~pos:0 msg in
   let bytes = Bytes.create len in
   Bin_prot.Common.blit_buf_bytes buf bytes ~len;
-  bytes
+  (Bin_prot.Shape.eval_to_digest_string Bin.bin_shape_t, bytes)
 
-let from_bytes (type a) (m: a m) bytes =
+
+let check_digest shape digest =
+  let digest' = Bin_prot.Shape.eval_to_digest_string shape in
+  if digest = digest' then
+    Ok ()
+  else
+    Error "digest failed"
+
+
+let from_bytes (type a) (m: a m) ?digest bytes  =
   let (module Bin) = m in
-  let len = Bytes.length bytes in
-  let buf = Bin_prot.Common.create_buf len in
-  Bin_prot.Common.blit_bytes_buf bytes buf ~len;
-  Bin.bin_read_t buf ~pos_ref:(ref 0)
+  Option.fold ~none:(Ok()) ~some:(check_digest Bin.bin_shape_t) digest
+  |> Result.map (fun _ ->
+      let len = Bytes.length bytes in
+      let buf = Bin_prot.Common.create_buf len in
+      Bin_prot.Common.blit_bytes_buf bytes buf ~len;
+      Bin.bin_read_t buf ~pos_ref:(ref 0)
+    )
+
+

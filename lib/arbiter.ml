@@ -49,10 +49,10 @@ module Make(B: Backend.B): ARBITER = struct
     B.listen
       (fun conn buf ->
          let buf = Luv.Buffer.to_bytes buf in
-         match Binable.from_bytes (module System.Msg) buf with
+         match Binable.from_bytes (module System.Msg) buf |> Result.get_ok (*UPRAVIT!*) with
          | Syn -> 
-           let buf = Binable.to_bytes (module System.Msg) System.Msg.Ready
-                     |> Luv.Buffer.from_bytes in(* Actor should wait until gets ready *)
+           let (_, buf') = Binable.to_bytes (module System.Msg) System.Msg.Ready in
+           let buf = Luv.Buffer.from_bytes buf' in(* Actor should wait until gets ready *)
            Luv.Stream.write conn [buf] (fun _ _ -> ());
          | ToActor (pid, msg) -> 
            print_endline "autor:";
@@ -86,14 +86,14 @@ module Make(B: Backend.B): ARBITER = struct
       Remote (id, addr_pid)
 
   let send (type a) pid (m: a Binable.m) msg =
-    let msg_b = Binable.to_bytes m msg in
+    let (_, msg_b) = Binable.to_bytes m msg in
     match check_location pid with
     |Local id ->
       send_localy id msg_b
     |Remote (id, addr_port) ->
-      let buf =  System.Msg.ToActor (id, msg_b) 
-                 |> (Binable.to_bytes (module System.Msg))
-                 |> Luv.Buffer.from_bytes in
+      let msg =  System.Msg.ToActor (id, msg_b) in
+      let (_, buf) = Binable.to_bytes (module System.Msg) msg in 
+      let buf = Luv.Buffer.from_bytes buf in
       B.send addr_port buf;
       print_endline "sended";
 end
