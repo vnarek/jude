@@ -1,4 +1,4 @@
 (tests
-    (names mailbox)
-    (libraries alcotest jude)
-    (preprocess (pps ppx_deriving.show ppx_deriving.eq)))
+    (names tester)
+    (libraries alcotest jude bin_prot)
+    (preprocess (pps  ppx_deriving.show ppx_deriving.eq ppx_bin_prot)))

@@ -9,7 +9,7 @@ module Msg = struct
 end
 
 
-let test_mailbox () = 
+let test_all_in_all_out () = 
   let mb = Mailbox.create () |> Result.get_ok in
   let xs = [Msg.First; Msg.Second; Msg.Third] in
   List.iter (fun x -> Mailbox.push mb x) xs;
@@ -19,13 +19,8 @@ let test_mailbox () =
     ) xs
 
 
-;;
-let () = 
-  Alcotest.run "Utils"
-    [
-      ( "mailbox", 
-        [
-          Alcotest.test_case "All in all out" `Quick test_mailbox
-        ]
-      );
-    ]
+let tests = [
+  "mailbox", [
+    "all in all out", `Quick, test_all_in_all_out;
+  ]
+]
