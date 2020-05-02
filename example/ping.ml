@@ -16,20 +16,18 @@ module PongMsg = struct
 end
 
 module Ping = struct
-  open Actor
-  type t = PingMsg.t [@@deriving bin_io]
+  include PingMsg
 
-  let receive {selfPid;_} = function
+  let receive Actor.{selfPid;_} = function
     | PingMsg.Ping(senderPid) -> print_endline "got PING!";
       Luv.Time.sleep 1000;
       Arbiter.send senderPid (module PongMsg) (Pong selfPid)
 end
 
 module Pong() = struct
-  open Actor
-  type t = PongMsg.t  [@@deriving bin_io]
+  include PongMsg
 
-  let receive {selfPid;_} =
+  let receive Actor.{selfPid;_} =
     let pid = Arbiter.spawn (module Ping) in
     Arbiter.send pid (module PingMsg) (PingMsg.Ping selfPid);
     function

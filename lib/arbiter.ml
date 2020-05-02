@@ -68,34 +68,32 @@ module Make(B: Backend.B): ARBITER = struct
     Luv.Loop.run () |> ignore
 
   let spawn  actor = 
-    let pid = Pid.create B.server_ip B.server_port in (* TODO: Maybe generate uuid inside Pid.create*)
+    let pid = Pid.create B.server_ip B.server_port in
     let instance = Actor.create pid actor in
     let id = Pid.id pid in
     register instance id; (* Lepší jako zpráva actoru arbiter *)
     pid
 
-  type location = Local | Remote
+  type location = Local of string | Remote of (string * (string * int))
 
   let check_location pid =
     let addr_b = B.server_ip, B.server_port in
     let addr_pid = Pid.address_port pid in
+    let id = Pid.id pid in
     if addr_b = addr_pid then
-      Local
+      Local (Pid.id pid)
     else
-      Remote
+      Remote (id, addr_pid)
 
   let send (type a) pid (m: a Binable.m) msg =
     let msg_b = Binable.to_bytes m msg in
-    let id = Pid.id pid in
-
     match check_location pid with
-    |Local ->
+    |Local id ->
       send_localy id msg_b
-    |Remote ->
+    |Remote (id, addr_port) ->
       let buf =  System.Msg.ToActor (id, msg_b) 
                  |> (Binable.to_bytes (module System.Msg))
                  |> Luv.Buffer.from_bytes in
-      let destination = Pid.address_port pid in
-      B.send destination buf;
+      B.send addr_port buf;
       print_endline "sended";
 end

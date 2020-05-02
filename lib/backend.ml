@@ -14,7 +14,7 @@ module type B = sig
   val server_ip : string
   val server_port : int
   val server_address : Luv.Sockaddr.t
-  val listen : (Luv.TCP.t -> Luv__.Buffer.t -> unit) -> unit
+  val listen : (Luv.TCP.t -> Luv.Buffer.t -> unit) -> unit
   val connect : (string * int) -> (Luv.TCP.t -> unit) -> Luv.TCP.t
   val send: (string * int) -> Luv.Buffer.t -> unit
 end

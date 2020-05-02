@@ -9,11 +9,9 @@ module Backend = Jude.Backend.Make(struct
 module Arbiter = Jude.Arbiter.Make(Backend)
 
 module Pong = struct
-  open Actor
+  include PongMsg
 
-  type t = PongMsg.t  [@@deriving bin_io]
-
-  let receive {selfPid;_} = function
+  let receive Actor.{selfPid;_} = function
     | PongMsg.Pong(senderPid) -> print_endline "got PONG!";
       Luv.Time.sleep 1000;
       Arbiter.send senderPid (module PingMsg) (Ping selfPid)
