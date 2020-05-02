@@ -17,8 +17,8 @@ end
 let receive (type a) (t: a def) mailbox buf =
   let (module T) = t in
   print_endline "receive";
-  let msg = Luv.Buffer.to_string buf
-            |> Core_kernel.Binable.of_string (module T) in
+  let msg = Luv.Buffer.to_bytes buf
+            |> Binable.from_bytes (module T) in
   Mailbox.push mailbox msg
 
 let create (type a) pid (t: a def) =

@@ -1,11 +1,4 @@
-
 type 'a m = (module Bin_prot.Binable.S with type t = 'a)
-
-(*let to_bytes (type a) (m: a m) msg = 
-  let (module Bin) = m in
-  let open Bin_prot in
-  let buf = Utils.bin_dump Bin.bin_writer_t msg in
-  let bytes = Bytes.create Bin.bin_write_t*)
 
 let to_bytes (type a) (m: a m) msg =
   let (module Bin) = m in

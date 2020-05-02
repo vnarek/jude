@@ -2,5 +2,5 @@
     (name jude)
     (public_name jude)
     (flags (:standard -safe-string))
-    (libraries luv bin_prot core_kernel uuidm)
+    (libraries luv bin_prot uuidm)
     (preprocess (pps ppx_bin_prot)))

@@ -6,7 +6,7 @@ end
 let test_msg_identity_property () =
   Msg.[Adioso "mama mia"; Erroroso 5]
   |> List.iter (fun msg ->
-      Jude.Binnable.(
+      Jude.Binable.(
         let bytes = to_bytes (module Msg) msg in
         let msg' = from_bytes (module Msg) bytes in
         Alcotest.(check (module Msg)) "should equal" msg msg'

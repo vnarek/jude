@@ -8,7 +8,7 @@ module type ARBITER = sig
   val init : unit -> unit
   val run : unit -> unit
   val spawn : 'a Actor.def -> Pid.t
-  val send : Pid.t -> 'a Core_kernel.Binable.m -> 'a -> unit
+  val send : Pid.t -> 'a Binable.m -> 'a -> unit
 end
 
 module Make(B: Backend.B): ARBITER = struct
@@ -40,7 +40,7 @@ module Make(B: Backend.B): ARBITER = struct
   let send_localy pid msg_s = 
     find_instance pid
     |> Option.iter (fun (module I: Actor.INSTANCE) ->
-        Luv.Buffer.from_string msg_s
+        Luv.Buffer.from_bytes msg_s
         |> I.receive;
         Channel.send arb.actor_ch (module I)
       )
@@ -48,15 +48,17 @@ module Make(B: Backend.B): ARBITER = struct
   let init () =
     B.listen
       (fun conn buf ->
-         match System.msg_from_buffer buf with
+         let buf = Luv.Buffer.to_bytes buf in
+         match Binable.from_bytes (module System.Msg) buf with
          | Syn -> 
-           let buf = System.msg_to_buffer System.Msg.Ready (* Actor should wait until gets ready *) in
+           let buf = Binable.to_bytes (module System.Msg) System.Msg.Ready
+                     |> Luv.Buffer.from_bytes in(* Actor should wait until gets ready *)
            Luv.Stream.write conn [buf] (fun _ _ -> ());
          | ToActor (pid, msg) -> 
            print_endline "autor:";
            print_endline pid;
            print_endline "msg:";
-           print_endline msg;
+           print_endline (Bytes.to_string msg);
            send_localy pid msg;
          | _ -> print_endline "nononoe";
       )
@@ -82,15 +84,17 @@ module Make(B: Backend.B): ARBITER = struct
     else
       Remote
 
-  let send (type a) pid (m: a Core_kernel.Binable.m) msg =
-    let msg_s = Core_kernel.Binable.to_string m msg in
+  let send (type a) pid (m: a Binable.m) msg =
+    let msg_b = Binable.to_bytes m msg in
     let id = Pid.id pid in
 
     match check_location pid with
     |Local ->
-      send_localy id msg_s 
+      send_localy id msg_b
     |Remote ->
-      let buf = System.msg_to_buffer (System.Msg.ToActor (id, msg_s)) in
+      let buf =  System.Msg.ToActor (id, msg_b) 
+                 |> (Binable.to_bytes (module System.Msg))
+                 |> Luv.Buffer.from_bytes in
       let destination = Pid.address_port pid in
       B.send destination buf;
       print_endline "sended";

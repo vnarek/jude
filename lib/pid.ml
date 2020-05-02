@@ -1,4 +1,4 @@
-open Core_kernel
+open Bin_prot.Std
 
 type t = {
   address: string;
