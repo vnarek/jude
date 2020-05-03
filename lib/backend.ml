@@ -19,7 +19,8 @@ module type B = sig
   val send: (string * int) -> Luv.Buffer.t -> unit
 end
 
-module Make(C: CONFIG): B = struct
+
+module Make_log(C: CONFIG)(Log: Logs.LOG): B = struct
 
   include C
 
@@ -44,16 +45,18 @@ module Make(C: CONFIG): B = struct
     send_ch = Channel.create ()
   }
 
+  let report_err str e = Logs.err @@ fun m -> m str (Luv.Error.strerror e)
+
   let connect (address, port) =
     let client = Luv.TCP.init () |> Result.get_ok in
     let sock_addr = Luv.Sockaddr.ipv4 address port |> Result.get_ok in 
     Luv.TCP.connect client sock_addr (fun e -> 
         match e with
         | Error e ->
-          Printf.printf "Connect error: %s\n" (Luv.Error.strerror e)
+          report_err "Connect error: %s\n" e
         | Ok () -> Luv.Stream.read_start client begin function
             | Error e ->
-              Printf.eprintf "Read error: %s\n" (Luv.Error.strerror e);
+              report_err "Read error: %s\n" e;
               Hashtbl.remove state.clients (address, port);
               Luv.Handle.close client ignore
             | _ -> ()
@@ -73,43 +76,40 @@ module Make(C: CONFIG): B = struct
             in
             Luv.Stream.write client [buf] (fun e _ -> 
                 match e with 
-                | Error x -> print_endline (Luv.Error.strerror x) 
-                | Ok () -> print_endline "no error");
+                | Error e -> report_err "Write error: %s\n" e
+                | Ok () -> ()
+              );
           );
       ) |> Result.get_ok
 
-  let print_err r = Luv.Error.strerror r |> print_endline
-
   let send destination buf = 
     Channel.send state.send_ch (destination, buf);
-    Luv.Async.send async_send_to_client |> Result.iter_error print_err
+    Luv.Async.send async_send_to_client 
+    |> Result.iter_error (report_err "Send error: %s \n")
 
   let listen fn = 
     Luv.Stream.listen state.server begin function
       | Error e ->
-        Printf.eprintf "Listen error: %s\n" (Luv.Error.strerror e)
+        report_err "Listen error: %s\n" e
       | Ok () ->
         let client = Luv.TCP.init () |> Result.get_ok in
 
         match Luv.Stream.accept ~server:state.server ~client with
         | Error e ->
-          Luv.Error.strerror e |> print_endline;
+          report_err "Accept error: %s\n" e;
           Luv.Handle.close client ignore
         | Ok () ->
           Luv.Stream.read_start client begin function
             | Error `EOF ->
-              print_endline "betwet";
-              Luv.TCP.getsockname client
-              |> Result.iter (fun x -> 
-                  Luv.Sockaddr.port x
-                  |> Option.iter print_int);
-              print_endline "eof bro";
+              Log.debug (fun m -> m "client hangup");
               Luv.Handle.close client ignore
             | Error e ->
-              Printf.eprintf "Read error: %s\n" (Luv.Error.strerror e);
+              report_err "Read error: %s\n" e;
               Luv.Handle.close client ignore
             | Ok buffer ->
               fn client buffer
           end;
     end
 end
+
+module Make(C: CONFIG) = Make_log(C)(Log.Log)

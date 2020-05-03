@@ -95,8 +95,4 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
       B.send addr_port buf;
 end
 
-
-let log_src = Logs.Src.create "jude.logs" ~doc:"logs jude library output"
-module Log = (val Logs.src_log log_src)
-
-module Make(B: Backend.B) = Make_log(B)(Log)
+module Make(B: Backend.B) = Make_log(B)(Log.Log)
