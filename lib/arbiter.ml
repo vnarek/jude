@@ -54,7 +54,7 @@ module Make(B: Backend.B): ARBITER = struct
          match Binable.from_bytes (module System.Msg) buf |> Result.get_ok (*UPRAVIT!*) with
          | Syn -> 
            let (_, buf') = Binable.to_bytes (module System.Msg) System.Msg.Ready in
-           let buf = Luv.Buffer.from_bytes buf' in(* Actor should wait until gets ready *)
+           let buf = Luv.Buffer.from_bytes buf' in
            Luv.Stream.write conn [buf] (fun _ _ -> ());
          | ToActor (pid, digest, msg) -> 
            print_endline "autor:";

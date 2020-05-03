@@ -15,7 +15,7 @@ module type B = sig
   val server_port : int
   val server_address : Luv.Sockaddr.t
   val listen : (Luv.TCP.t -> Luv.Buffer.t -> unit) -> unit
-  val connect : (string * int) -> (Luv.TCP.t -> unit) -> Luv.TCP.t
+  val connect : (string * int) -> Luv.TCP.t
   val send: (string * int) -> Luv.Buffer.t -> unit
 end
 
@@ -44,15 +44,21 @@ module Make(C: CONFIG): B = struct
     send_ch = Channel.create ()
   }
 
-  let connect (address, port) fn =
+  let connect (address, port) =
     let client = Luv.TCP.init () |> Result.get_ok in
     let sock_addr = Luv.Sockaddr.ipv4 address port |> Result.get_ok in 
     Luv.TCP.connect client sock_addr (fun e -> 
         match e with
         | Error e ->
           Printf.printf "Connect error: %s\n" (Luv.Error.strerror e)
-        | Ok () ->
-          fn client);
+        | Ok () -> Luv.Stream.read_start client begin function
+            | Error e ->
+              Printf.eprintf "Read error: %s\n" (Luv.Error.strerror e);
+              Hashtbl.remove state.clients (address, port);
+              Luv.Handle.close client ignore
+            | _ -> ()
+          end;
+      );
     client
 
   let async_send_to_client =
@@ -61,7 +67,7 @@ module Make(C: CONFIG): B = struct
             let client = match Hashtbl.find_opt state.clients destination with
               | Some client -> client
               | None ->
-                let client = connect destination ignore in
+                let client = connect destination in
                 Hashtbl.add state.clients destination client;
                 client
             in
@@ -92,6 +98,12 @@ module Make(C: CONFIG): B = struct
         | Ok () ->
           Luv.Stream.read_start client begin function
             | Error `EOF ->
+              print_endline "betwet";
+              Luv.TCP.getsockname client
+              |> Result.iter (fun x -> 
+                  Luv.Sockaddr.port x
+                  |> Option.iter print_int);
+              print_endline "eof bro";
               Luv.Handle.close client ignore
             | Error e ->
               Printf.eprintf "Read error: %s\n" (Luv.Error.strerror e);
