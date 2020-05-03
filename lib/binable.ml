@@ -9,6 +9,9 @@ let to_bytes (type a) (m: a m) msg =
   Bin_prot.Common.blit_buf_bytes buf bytes ~len;
   (Bin_prot.Shape.eval_to_digest_string Bin.bin_shape_t, bytes)
 
+let to_digest (type a) (m: a m) =
+  let (module Bin) = m in
+  Bin_prot.Shape.eval_to_digest_string Bin.bin_shape_t
 
 let check_digest shape digest =
   let digest' = Bin_prot.Shape.eval_to_digest_string shape in

@@ -16,7 +16,7 @@ module Ping = struct
     function
     | PingMsg.Ping(senderPid) -> print_endline "got PING!";
       Printf.printf "from %s\n" (Pid.to_string senderPid);
-      Luv.Time.sleep 1000;
+      Luv.Time.sleep 200;
       Arbiter.send senderPid (module PongMsg) (Pong selfPid);
 end
 
@@ -24,7 +24,7 @@ let () =
   Arbiter.init();
 
   let pid = Arbiter.spawn (module Ping) in
-  let pid' = Pid.create ~id:(Uuidm.of_string "c1802278-95ef-4103-bbda-8b34a822716d" |> Stdlib.Option.get |> Uuidm.to_bytes) "127.0.0.1" 7001 in (* run pong.exe first and fill here *)
+  let pid' = Pid.create ~id:(Uuidm.of_string "00691633-7d08-4ea2-b2e5-adad1ebd1f6e" |> Stdlib.Option.get |> Uuidm.to_bytes) "127.0.0.1" 7001 in (* run pong.exe first and fill here *)
 
   Arbiter.send pid (module PingMsg) (PingMsg.Ping pid');
   Arbiter.run ()

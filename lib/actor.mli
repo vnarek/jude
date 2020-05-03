@@ -9,10 +9,12 @@ end
 
 type 'a def = (module DEF with type t = 'a)
 
+type error = Digest_mismatch
+
 module type INSTANCE = sig
-  val receive : Luv.Buffer.t -> unit
+  val receive : digest:string -> bytes -> (unit, error) result
   val step : unit -> unit
 end
 
-val receive : 'a def -> 'a Mailbox.t -> Luv.Buffer.t -> unit
+val receive : 'a def -> 'a Mailbox.t -> bytes -> unit
 val create : Pid.t -> 'a def -> (module INSTANCE)

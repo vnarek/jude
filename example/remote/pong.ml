@@ -13,7 +13,7 @@ module Pong = struct
 
   let receive Actor.{selfPid;_} = function
     | PongMsg.Pong(senderPid) -> print_endline "got PONG!";
-      Luv.Time.sleep 1000;
+      Luv.Time.sleep 200;
       Arbiter.send senderPid (module PingMsg) (Ping selfPid)
 end
 
