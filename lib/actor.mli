@@ -9,7 +9,7 @@ end
 
 type 'a def = (module DEF with type t = 'a)
 
-type error = Digest_mismatch
+type error = Digest_mismatch of string * string
 
 module type INSTANCE = sig
   val receive : digest:string -> bytes -> (unit, error) result

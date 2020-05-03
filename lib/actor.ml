@@ -9,7 +9,7 @@ end
 
 type 'a def = (module DEF with type t = 'a)
 
-type error = Digest_mismatch
+type error = Digest_mismatch of string * string
 
 module type INSTANCE = sig
   val receive: digest:string -> bytes -> (unit, error) result
@@ -31,7 +31,7 @@ let create (type a) pid (t: a def) =
       if digest = digest' then
         Ok(receive (module T) mailbox buf)
       else
-        Error Digest_mismatch
+        Error (Digest_mismatch (digest', digest))
 
     let step () = 
       Mailbox.take mailbox

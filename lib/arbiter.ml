@@ -11,7 +11,7 @@ module type ARBITER = sig
   val send : Pid.t -> 'a Binable.m -> 'a -> unit
 end
 
-module Make(B: Backend.B): ARBITER = struct
+module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
   let arb =
     let mux = Luv.Rwlock.init () |> Result.get_ok in
     {
@@ -19,7 +19,6 @@ module Make(B: Backend.B): ARBITER = struct
       mux = mux;
       actor_ch = Channel.create ();
     }
-
 
   let register instance name =
     Luv.Rwlock.wrlock arb.mux;
@@ -43,8 +42,8 @@ module Make(B: Backend.B): ARBITER = struct
         match I.receive ~digest msg_s with
         | Ok () -> 
           Channel.send arb.actor_ch (module I)
-        |Error _ ->
-          print_endline "digest_mismatch"
+        |Error (Actor.Digest_mismatch (act, res)) ->
+          Log.err (fun m -> m "digest mismatch %s %s" act res)
       )
 
   let init () =
@@ -56,13 +55,10 @@ module Make(B: Backend.B): ARBITER = struct
            let (_, buf') = Binable.to_bytes (module System.Msg) System.Msg.Ready in
            let buf = Luv.Buffer.from_bytes buf' in
            Luv.Stream.write conn [buf] (fun _ _ -> ());
-         | ToActor (pid, digest, msg) -> 
-           print_endline "autor:";
-           print_endline pid;
-           print_endline "msg:";
-           print_endline (Bytes.to_string msg);
+         | ToActor (pid, digest, msg) ->
+           Log.debug (fun m -> m "to_actor(dest:%s)" pid);
            send_localy pid digest msg;
-         | _ -> print_endline "nononoe";
+         | _ -> Log.warn (fun m -> m "this should never happen")
       )
 
   let run () = 
@@ -98,3 +94,9 @@ module Make(B: Backend.B): ARBITER = struct
       let buf = Luv.Buffer.from_bytes buf in
       B.send addr_port buf;
 end
+
+
+let log_src = Logs.Src.create "jude.logs" ~doc:"logs jude library output"
+module Log = (val Logs.src_log log_src)
+
+module Make(B: Backend.B) = Make_log(B)(Log)

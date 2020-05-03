@@ -19,7 +19,7 @@ module Ping = struct
   include PingMsg
 
   let receive Actor.{selfPid;_} = function
-    | PingMsg.Ping(senderPid) -> print_endline "got PING!";
+    | PingMsg.Ping(senderPid) -> Logs.app (fun m -> m "got PING!");
       Luv.Time.sleep 1000;
       Arbiter.send senderPid (module PongMsg) (Pong selfPid)
 end
@@ -31,12 +31,13 @@ module Pong() = struct
     let pid = Arbiter.spawn (module Ping) in
     Arbiter.send pid (module PingMsg) (PingMsg.Ping selfPid);
     function
-    | PongMsg.Pong(senderPid) -> print_endline "got PONG!";
+    | PongMsg.Pong(senderPid) -> Logs.app (fun m -> m "got PONG");
       Luv.Time.sleep 1000;
-      Arbiter.send senderPid (module PingMsg) (Ping selfPid)
+      Arbiter.send senderPid (module PingMsg) (Ping selfPid);
 end
 
-let () = 
+let () =
+  Logs.set_reporter (Logs.format_reporter ());
   Arbiter.init();
   let _ = Arbiter.spawn (module Pong()) in
   Arbiter.run ()

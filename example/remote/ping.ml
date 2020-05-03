@@ -14,13 +14,13 @@ module Ping = struct
 
   let receive Actor.{selfPid;_} = 
     function
-    | PingMsg.Ping(senderPid) -> print_endline "got PING!";
-      Printf.printf "from %s\n" (Pid.to_string senderPid);
+    | PingMsg.Ping(senderPid) -> Logs.app (fun m -> m "got PING from: %s" (Pid.to_string senderPid));
       Luv.Time.sleep 1000;
       Arbiter.send senderPid (module PongMsg) (Pong selfPid);
 end
 
 let () = 
+  Logs.set_reporter (Logs.format_reporter ());
   Arbiter.init();
 
   let pid = Arbiter.spawn (module Ping) in
