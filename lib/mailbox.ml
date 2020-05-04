@@ -25,4 +25,5 @@ let take {mutex; queue} =
   Luv.Rwlock.rdunlock mutex;
   msg
 
+(*TODO: rewrite Mailbox to add filter and stuff *)
 let destroy t = Luv.Rwlock.destroy t.mutex 

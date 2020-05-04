@@ -33,17 +33,19 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
 
   let rec actor_loop () =
     Channel.recv arb.actor_ch
-    |> Option.iter (fun (module I: Actor.INSTANCE) -> I.step());
+    |> Option.iter (
+      fun (module I: Actor.INSTANCE) -> 
+        I.step()
+        |> Result.iter_error @@ fun r ->
+        Log.debug (fun m -> m "receive: %s" r)
+    );
     actor_loop()
 
-  let send_localy pid digest msg_s = 
+  let send_localy pid digest buf = 
     find_instance pid
     |> Option.iter (fun (module I: Actor.INSTANCE) ->
-        match I.receive ~digest msg_s with
-        | Ok () -> 
-          Channel.send arb.actor_ch (module I)
-        |Error (Actor.Digest_mismatch (act, res)) ->
-          Log.err (fun m -> m "digest mismatch %s %s" act res)
+        I.receive ~digest buf;
+        Channel.send arb.actor_ch (module I)
       )
 
   let init () =

@@ -51,7 +51,7 @@ let rec recv t =
     Luv.Mutex.unlock t.mux; 
     Some(x)
   | None ->
-    Luv.Condition.wait t.cond t.mux; (* Research how conds work *)
+    Luv.Condition.wait t.cond t.mux;
     Luv.Mutex.unlock t.mux;
     recv t
 

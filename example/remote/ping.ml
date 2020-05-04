@@ -13,10 +13,13 @@ module Ping = struct
   include Messages.PingMsg
 
   let receive Actor.{selfPid;_} = 
-    function
-    | PingMsg.Ping(senderPid) -> Logs.app (fun m -> m "got PING from: %s" (Pid.to_string senderPid));
-      Luv.Time.sleep 1000;
-      Arbiter.send senderPid (module PongMsg) (Pong selfPid);
+    Matcher.react [
+      Matcher.case (module PingMsg) @@ function
+      | Ping senderPid -> 
+        Logs.app (fun m -> m "got PING!");
+        Luv.Time.sleep 1000;
+        Arbiter.send senderPid (module PongMsg) (Pong selfPid)
+    ]
 end
 
 let () = 
