@@ -2,6 +2,11 @@ type ctx = {
   selfPid : Pid.t
 }
 
+type t = {
+  mailbox: (string * bytes) Mailbox.t;
+  mutable cont: Matcher.t ref;
+}
+
 module type DEF = sig
   type t [@@deriving bin_io]
   val receive : ctx -> Matcher.t
@@ -17,4 +22,5 @@ module type INSTANCE = sig
 end
 
 val receive : 'a def -> 'a Mailbox.t -> bytes -> unit
-val create : Pid.t -> 'a def -> (module INSTANCE)
+val create : 'a def -> (t * (module INSTANCE))
+val init : 'a def -> t -> Pid.t -> unit

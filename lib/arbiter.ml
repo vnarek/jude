@@ -42,11 +42,12 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
     actor_loop()
 
   let send_localy pid digest buf = 
-    find_instance pid
-    |> Option.iter (fun (module I: Actor.INSTANCE) ->
-        I.receive ~digest buf;
-        Channel.send arb.actor_ch (module I)
-      )
+    match find_instance pid with
+    |Some(module I: Actor.INSTANCE) ->
+      I.receive ~digest buf;
+      Channel.send arb.actor_ch (module I)
+    |None ->
+      Log.debug (fun m -> m "send_locally error: not_found\n")
 
   let init () =
     B.listen
@@ -69,9 +70,10 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
 
   let spawn actor = 
     let pid = Pid.create B.server_ip B.server_port in
-    let instance = Actor.create pid actor in
+    let t, instance = Actor.create actor in
     let id = Pid.id pid in
     register instance id; (* Lepší jako zpráva actoru arbiter *)
+    Actor.init actor t pid;
     pid
 
   type location = Local of string | Remote of (string * (string * int))

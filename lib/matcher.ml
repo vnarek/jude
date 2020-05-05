@@ -21,3 +21,5 @@ let rec react matchers digest msg =
     match m digest msg with
     | Error _ -> react rest digest msg
     | _ -> Ok()
+
+let sink _ _ = Ok()
