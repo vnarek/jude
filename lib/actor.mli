@@ -2,10 +2,7 @@ type ctx = {
   selfPid : Pid.t
 }
 
-type t = {
-  mailbox: (string * bytes) Mailbox.t;
-  mutable cont: Matcher.t ref;
-}
+type t
 
 module type DEF = sig
   type t [@@deriving bin_io]
@@ -16,11 +13,7 @@ type 'a def = (module DEF with type t = 'a)
 
 type error = Digest_mismatch of string * string
 
-module type INSTANCE = sig
-  val receive : digest:string -> bytes -> unit
-  val step : unit -> (unit, string) result
-end
-
-val receive : 'a def -> 'a Mailbox.t -> bytes -> unit
-val create : 'a def -> (t * (module INSTANCE))
+val create : 'a def -> t
+val receive: t -> string -> bytes -> unit
 val init : 'a def -> t -> Pid.t -> unit
+val step: t -> (unit, string) result

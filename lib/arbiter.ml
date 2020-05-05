@@ -1,7 +1,7 @@
 type 'a arbiter = {
-  actors : (string, (module Actor.INSTANCE)) Hashtbl.t;
+  actors : (string, Actor.t) Hashtbl.t;
   mux : Luv.Rwlock.t;
-  actor_ch : (module Actor.INSTANCE) Channel.t;
+  actor_ch : Actor.t Channel.t;
 }
 
 module type ARBITER = sig
@@ -34,8 +34,8 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
   let rec actor_loop () =
     Channel.recv arb.actor_ch
     |> Option.iter (
-      fun (module I: Actor.INSTANCE) -> 
-        I.step()
+      fun t -> 
+        Actor.step t
         |> Result.iter_error @@ fun r ->
         Log.debug (fun m -> m "receive: %s" r)
     );
@@ -43,9 +43,9 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
 
   let send_localy pid digest buf = 
     match find_instance pid with
-    |Some(module I: Actor.INSTANCE) ->
-      I.receive ~digest buf;
-      Channel.send arb.actor_ch (module I)
+    |Some t ->
+      Actor.receive t digest buf;
+      Channel.send arb.actor_ch t
     |None ->
       Log.debug (fun m -> m "send_locally error: not_found\n")
 
@@ -70,9 +70,9 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
 
   let spawn actor = 
     let pid = Pid.create B.server_ip B.server_port in
-    let t, instance = Actor.create actor in
+    let t = Actor.create actor in
     let id = Pid.id pid in
-    register instance id; (* Lepší jako zpráva actoru arbiter *)
+    register t id; (* Lepší jako zpráva actoru arbiter *)
     Actor.init actor t pid;
     pid
 
