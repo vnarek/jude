@@ -1,7 +1,9 @@
+type actor = Actor.ctx -> Matcher.t
+
 module type ARBITER = sig
   val init : unit -> unit
   val run : unit -> unit
-  val spawn : 'a Actor.def -> Pid.t
+  val spawn : actor -> Pid.t
   val send : Pid.t -> 'a Binable.m -> 'a -> unit
 end
 

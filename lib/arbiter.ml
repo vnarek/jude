@@ -4,10 +4,12 @@ type 'a arbiter = {
   actor_ch : Actor.t Channel.t;
 }
 
+type actor = Actor.ctx -> Matcher.t
+
 module type ARBITER = sig
   val init : unit -> unit
   val run : unit -> unit
-  val spawn : 'a Actor.def -> Pid.t
+  val spawn : actor -> Pid.t
   val send : Pid.t -> 'a Binable.m -> 'a -> unit
 end
 
@@ -70,7 +72,7 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
 
   let spawn actor = 
     let pid = Pid.create B.server_ip B.server_port in
-    let t = Actor.create actor in
+    let t = Actor.create () in
     let id = Pid.id pid in
     register t id; (* Lepší jako zpráva actoru arbiter *)
     Actor.init actor t pid;

@@ -8,21 +8,17 @@ module Backend = Jude.Backend.Make(struct
 
 module Arbiter = Jude.Arbiter.Make(Backend)
 
-module Pong = struct
-  include PongMsg
-
-  let receive Actor.{selfPid;_} = Matcher.react [
-      Matcher.case (module PingMsg) @@ function
-      | Ping senderPid -> 
-        Logs.app (fun m -> m "got PING!");
-        Luv.Time.sleep 1000;
-        Arbiter.send senderPid (module PongMsg) (Pong selfPid)
-    ]
-end
+let pong () Actor.{selfPid;_} = Matcher.react [
+    Matcher.case (module PingMsg) @@ function
+    | Ping senderPid -> 
+      Logs.app (fun m -> m "got PING!");
+      Luv.Time.sleep 1000;
+      Arbiter.send senderPid (module PongMsg) (Pong selfPid)
+  ]
 
 let () = 
   Arbiter.init();
-  let pid = Arbiter.spawn (module Pong) in
+  let pid = Arbiter.spawn (pong ()) in
 
   Pid.to_string pid |> print_endline;
   Arbiter.run ()

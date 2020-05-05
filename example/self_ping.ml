@@ -1,7 +1,5 @@
 open Jude
 
-
-
 module Backend = Jude.Backend.Make(struct
     let server_ip = "127.0.0.1"
     let server_port = 7000
@@ -17,35 +15,32 @@ module PongMsg = struct
   type t = Pong of Pid.t [@@deriving bin_io]
 end
 
-module Pong() = struct
-  include PongMsg
-
-  let receive Actor.{selfPid;_} =
-    Arbiter.send selfPid (module PongMsg) (PongMsg.Pong selfPid);
-    Matcher.(
-      react [
-        case (module PongMsg) @@ function
-        | Pong senderPid ->
-          Logs.app (fun m -> m "got PONG!");
-          Luv.Time.sleep 1000;
-          Arbiter.send senderPid (module PingMsg) (Ping selfPid)
-      ]
-    )
-  and ping Actor.{selfPid; _} =
-    Matcher.(
-      react [
-        case (module PingMsg) @@ function
-        | Ping senderPid ->
-          Logs.app (fun m -> m "got PING!");
-          Luv.Time.sleep 1000;
-          Arbiter.send senderPid (module PongMsg) (Pong selfPid)
-      ]
-    )
-end
+let pong () ctx =
+  let Actor.{selfPid;_} = ctx in
+  Arbiter.send selfPid (module PongMsg) (Pong selfPid);
+  Matcher.(
+    react [
+      case (module PongMsg) @@ function
+      | Pong senderPid ->
+        Logs.app (fun m -> m "got PONG!");
+        Luv.Time.sleep 1000;
+        Arbiter.send senderPid (module PingMsg) (Ping selfPid);
+    ]
+  )
+and ping Actor.{selfPid; _} =
+  Matcher.(
+    react [
+      case (module PingMsg) @@ function
+      | Ping senderPid ->
+        Logs.app (fun m -> m "got PING!");
+        Luv.Time.sleep 1000;
+        Arbiter.send senderPid (module PongMsg) (Pong selfPid)
+    ]
+  )
 
 let () =
   Logs.Src.set_level Jude.Log.log_src (Some Debug);
   Logs.set_reporter (Logs.format_reporter ());
   Arbiter.init();
-  let _ = Arbiter.spawn (module Pong()) in
+  let _ = Arbiter.spawn (pong()) in
   Arbiter.run ()
