@@ -40,7 +40,7 @@ module Pong() = struct
       | Pong senderPid ->
         Logs.app (fun m -> m "got PONG!");
         Luv.Time.sleep 1000;
-        Arbiter.send senderPid (module PongMsg) (Pong selfPid)
+        Arbiter.send senderPid (module PingMsg) (Ping selfPid)
     ]
 end
 
