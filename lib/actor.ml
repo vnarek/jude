@@ -4,6 +4,7 @@ type t = {
   selfPid: Pid.t;
   mailbox: (string * bytes) Mailbox.t;
   mutable cont: Matcher.t ref;
+  links: (Pid.t, unit) Hashtbl.t
 }
 
 let create pid =
@@ -11,7 +12,8 @@ let create pid =
   {
     selfPid = pid;
     cont = ref Matcher.sink;
-    mailbox = mailbox
+    mailbox = mailbox;
+    links = Hashtbl.create 15;
   }
 
 let init fn t  =
@@ -28,3 +30,5 @@ let step t =
 let selfPid {selfPid; _} = selfPid
 
 let become t fn = t.cont := fn t
+
+let link a b = Hashtbl.add a.links b ()

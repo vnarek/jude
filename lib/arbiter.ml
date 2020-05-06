@@ -10,7 +10,9 @@ module type ARBITER = sig
   val init : unit -> unit
   val run : unit -> unit
   val spawn : actor -> Pid.t
+  val spawn_link: Pid.t -> actor -> Pid.t
   val send : Pid.t -> 'a Binable.m -> 'a -> unit
+  val link: Pid.t -> Pid.t -> unit
 end
 
 module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
@@ -32,6 +34,8 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
     let instance = Hashtbl.find_opt arb.actors name in
     Luv.Rwlock.rdunlock arb.mux;
     instance
+
+  let find_instance_pid Pid.{id;_} = find_instance id
 
   let rec actor_loop () =
     Channel.recv arb.actor_ch
@@ -98,7 +102,24 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
       let msg =  System.Msg.ToActor (id, digest, msg_b) in
       let (_, buf) = Binable.to_bytes (module System.Msg) msg in 
       let buf = Luv.Buffer.from_bytes buf in
-      B.send addr_port buf;
+      B.send addr_port buf
+
+  let link a b =
+    Option.bind (find_instance_pid a) (fun a ->
+        find_instance_pid b
+        |> Option.map (
+          fun b -> (a, b)
+        )
+      )
+    |> Option.iter (fun (a, b) -> 
+        Actor.link a (Actor.selfPid b);
+        Actor.link b (Actor.selfPid a);
+      )
+
+  let spawn_link a actor =
+    let pid = spawn actor in
+    link a pid;
+    pid
 end
 
 module Make(B: Backend.B) = Make_log(B)(Log.Log)

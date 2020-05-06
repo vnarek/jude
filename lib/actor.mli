@@ -8,3 +8,4 @@ val init : (t -> Matcher.t) -> t -> unit
 val step: t -> (unit, string) result
 val selfPid: t -> Pid.t
 val become: t -> (t -> Matcher.t) -> unit
+val link: t -> Pid.t -> unit
