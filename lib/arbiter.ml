@@ -4,7 +4,7 @@ type 'a arbiter = {
   actor_ch : Actor.t Channel.t;
 }
 
-type actor = Actor.ctx -> Matcher.t
+type actor = Actor.t -> Matcher.t
 
 module type ARBITER = sig
   val init : unit -> unit
@@ -72,10 +72,10 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
 
   let spawn actor = 
     let pid = Pid.create B.server_ip B.server_port in
-    let t = Actor.create () in
+    let t = Actor.create pid in
     let id = Pid.id pid in
     register t id; (* Lepší jako zpráva actoru arbiter *)
-    Actor.init actor t pid;
+    Actor.init actor t;
     pid
 
   type location = Local of string | Remote of (string * (string * int))

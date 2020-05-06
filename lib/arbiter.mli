@@ -1,4 +1,4 @@
-type actor = Actor.ctx -> Matcher.t
+type actor = Actor.t -> Matcher.t
 
 module type ARBITER = sig
   val init : unit -> unit

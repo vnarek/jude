@@ -16,7 +16,9 @@ module PongMsg = struct
 end
 
 
-let ping () Actor.{selfPid;_} = Matcher.react [
+let ping () ctx = 
+  let selfPid = Actor.selfPid ctx in
+  Matcher.react [
     Matcher.case (module PingMsg) @@ function
     | Ping senderPid -> 
       Logs.app (fun m -> m "got PING!");
@@ -25,7 +27,8 @@ let ping () Actor.{selfPid;_} = Matcher.react [
   ]
 
 
-let pong () Actor.{selfPid;_} =
+let pong () ctx =
+  let selfPid = Actor.selfPid ctx in
   let pid = Arbiter.spawn (ping ()) in
   Arbiter.send pid (module PingMsg) (PingMsg.Ping selfPid);
   Matcher.react [

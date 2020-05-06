@@ -8,7 +8,9 @@ module Backend = Jude.Backend.Make(struct
 
 module Arbiter = Jude.Arbiter.Make(Backend)
 
-let pong () Actor.{selfPid;_} = Matcher.react [
+let pong () ctx = 
+  let selfPid = Actor.selfPid ctx in
+  Matcher.react [
     Matcher.case (module PingMsg) @@ function
     | Ping senderPid -> 
       Logs.app (fun m -> m "got PING!");

@@ -1,4 +1,4 @@
 (executables
     (libraries luv jude)
-    (names ping self_ping)
+    (names ping factorial)
     (preprocess (pps ppx_bin_prot)))

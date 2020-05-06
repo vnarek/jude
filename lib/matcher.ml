@@ -15,7 +15,7 @@ let case (type a) (m: a Binable.m) fn digest msg =
 
 let rec react matchers digest msg =
   match matchers with
-  | [] -> 
+  | [] ->
     Error "no match"
   | m :: rest -> 
     match m digest msg with
