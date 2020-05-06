@@ -1,6 +1,7 @@
 type 'a arbiter = {
   actors : (string, Actor.t) Hashtbl.t;
   mux : Luv.Rwlock.t;
+  names: (string, Pid.t) Hashtbl.t;
   actor_ch : Actor.t Channel.t;
 }
 
@@ -13,6 +14,8 @@ module type ARBITER = sig
   val spawn_link: Pid.t -> actor -> Pid.t
   val send : Pid.t -> 'a Binable.m -> 'a -> unit
   val link: Pid.t -> Pid.t -> unit
+  val register: string -> Pid.t -> unit
+  val get_name: string -> Pid.t option
 end
 
 module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
@@ -21,13 +24,20 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
     {
       actors = Hashtbl.create 100;
       mux = mux;
+      names = Hashtbl.create 100;
       actor_ch = Channel.create ();
     }
 
-  let register instance name =
+  let save_instance instance name =
     Luv.Rwlock.wrlock arb.mux;
     Hashtbl.add arb.actors name instance;
     Luv.Rwlock.wrunlock arb.mux
+
+  let _count_instance () =
+    Luv.Rwlock.rdlock arb.mux;
+    let num = Hashtbl.length arb.actors in
+    Luv.Rwlock.rdunlock arb.mux;
+    num
 
   let find_instance name =
     Luv.Rwlock.rdlock arb.mux;
@@ -78,7 +88,7 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
     let pid = Pid.create B.server_ip B.server_port in
     let t = Actor.create pid in
     let id = Pid.id pid in
-    register t id; (* Lepší jako zpráva actoru arbiter *)
+    save_instance t id; (* Lepší jako zpráva actoru arbiter *)
     Actor.init actor t;
     pid
 
@@ -120,6 +130,9 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
     let pid = spawn actor in
     link a pid;
     pid
+
+  let register name pid = Hashtbl.add arb.names name pid
+  let get_name name = Hashtbl.find_opt arb.names name
 end
 
 module Make(B: Backend.B) = Make_log(B)(Log.Log)
