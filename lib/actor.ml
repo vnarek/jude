@@ -1,11 +1,14 @@
 type error = Digest_mismatch of string * string
 type 'a set = ('a, unit) Hashtbl.t
 
+type process_flags = [`Trap_exit]
+
 type t = {
   selfPid: Pid.t;
   mailbox: (string * bytes) Mailbox.t;
   mutable cont: Matcher.t ref;
-  links: Pid.t set
+  links: Pid.t set;
+  flags: process_flags set
 }
 
 let create pid =
@@ -15,6 +18,7 @@ let create pid =
     cont = ref Matcher.sink;
     mailbox = mailbox;
     links = Hashtbl.create 15;
+    flags = Hashtbl.create 1;
   }
 
 let init fn t  =
@@ -35,3 +39,10 @@ let become t fn = t.cont := fn t
 let link a b = Hashtbl.add a.links b ()
 
 let link_iter fn a = Hashtbl.iter (fun a _ -> fn a) a.links
+
+let set_flag t p =
+  Hashtbl.replace t.flags p ()
+
+let has_flag t p =
+  Hashtbl.find_opt t.flags p
+  |> Option.is_some
