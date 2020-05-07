@@ -9,3 +9,4 @@ val step: t -> (unit, string) result
 val selfPid: t -> Pid.t
 val become: t -> (t -> Matcher.t) -> unit
 val link: t -> Pid.t -> unit
+val link_iter: (Pid.t -> unit) -> t -> unit

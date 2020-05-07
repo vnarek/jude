@@ -8,7 +8,9 @@ module type ARBITER = sig
   val send : Pid.t -> 'a Binable.m -> 'a -> unit
   val link: Pid.t -> Pid.t -> unit
   val register: string -> Pid.t -> unit
+  val unregister: string -> unit
   val get_name: string -> Pid.t option
+  val exit: Pid.t -> System.Msg_exit.t -> unit
 end
 
 module Make_log : functor (B: Backend.B)(Log: Logs.LOG) -> ARBITER

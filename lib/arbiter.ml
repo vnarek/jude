@@ -1,7 +1,7 @@
 type 'a arbiter = {
   actors : (string, Actor.t) Hashtbl.t;
   mux : Luv.Rwlock.t;
-  names: (string, Pid.t) Hashtbl.t;
+  registry: Registry.t;
   actor_ch : Actor.t Channel.t;
 }
 
@@ -15,7 +15,9 @@ module type ARBITER = sig
   val send : Pid.t -> 'a Binable.m -> 'a -> unit
   val link: Pid.t -> Pid.t -> unit
   val register: string -> Pid.t -> unit
+  val unregister: string -> unit
   val get_name: string -> Pid.t option
+  val exit: Pid.t -> System.Msg_exit.t -> unit
 end
 
 module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
@@ -24,13 +26,13 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
     {
       actors = Hashtbl.create 100;
       mux = mux;
-      names = Hashtbl.create 100;
+      registry = Registry.create ();
       actor_ch = Channel.create ();
     }
 
   let save_instance instance name =
     Luv.Rwlock.wrlock arb.mux;
-    Hashtbl.add arb.actors name instance;
+    Hashtbl.replace arb.actors name instance;
     Luv.Rwlock.wrunlock arb.mux
 
   let _count_instance () =
@@ -44,6 +46,11 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
     let instance = Hashtbl.find_opt arb.actors name in
     Luv.Rwlock.rdunlock arb.mux;
     instance
+
+  let remove_instance_pid Pid.{id; _} =
+    Luv.Rwlock.wrlock arb.mux;
+    Hashtbl.remove arb.actors id;
+    Luv.Rwlock.wrunlock arb.mux
 
   let find_instance_pid Pid.{id;_} = find_instance id
 
@@ -131,8 +138,22 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
     link a pid;
     pid
 
-  let register name pid = Hashtbl.add arb.names name pid
-  let get_name name = Hashtbl.find_opt arb.names name
+  let register = Registry.register arb.registry
+
+  let unregister = Registry.unregister arb.registry
+
+  let unregister_all = Registry.unregister_all arb.registry
+
+  let get_name = Registry.get_name arb.registry
+
+  let rec exit pid a =
+    find_instance_pid pid
+    |> Option.iter 
+      (fun i -> 
+         Actor.link_iter (fun p -> exit p a) i;
+         unregister_all pid;
+         remove_instance_pid pid
+      )
 end
 
 module Make(B: Backend.B) = Make_log(B)(Log.Log)

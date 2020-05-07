@@ -1,10 +1,11 @@
 type error = Digest_mismatch of string * string
+type 'a set = ('a, unit) Hashtbl.t
 
 type t = {
   selfPid: Pid.t;
   mailbox: (string * bytes) Mailbox.t;
   mutable cont: Matcher.t ref;
-  links: (Pid.t, unit) Hashtbl.t
+  links: Pid.t set
 }
 
 let create pid =
@@ -32,3 +33,5 @@ let selfPid {selfPid; _} = selfPid
 let become t fn = t.cont := fn t
 
 let link a b = Hashtbl.add a.links b ()
+
+let link_iter fn a = Hashtbl.iter (fun a _ -> fn a) a.links
