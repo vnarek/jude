@@ -1,8 +1,10 @@
+type channel_ops = End | Step of Actor.t
+
 type 'a arbiter = {
   actors : (string, Actor.t) Hashtbl.t;
   mux : Luv.Rwlock.t;
   registry: Registry.t;
-  actor_ch : Actor.t Channel.t;
+  actor_ch : channel_ops Channel.t;
 }
 
 type actor = Actor.t -> Matcher.t
@@ -30,6 +32,10 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
       actor_ch = Channel.create ();
     }
 
+  let async_stop = Luv.Async.init 
+      (fun _ ->  Luv.Loop.stop (Luv.Loop.default ()))
+                   |> Result.get_ok
+
   let save_instance instance name =
     Luv.Rwlock.wrlock arb.mux;
     Hashtbl.replace arb.actors name instance;
@@ -55,20 +61,19 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
   let find_instance_pid Pid.{id;_} = find_instance id
 
   let rec actor_loop () =
-    Channel.recv arb.actor_ch
-    |> Option.iter (
-      fun t -> 
-        Actor.step t
-        |> Result.iter_error @@ fun r ->
-        Log.debug (fun m -> m "receive: %s" r)
-    );
-    actor_loop()
-
+    match Channel.recv arb.actor_ch with
+    | Some(End) -> Luv.Async.send async_stop |> ignore
+    | Some(Step t) ->
+      Actor.step t
+      |> Result.iter_error (fun r ->
+          Log.debug (fun m -> m "receive: %s" r));
+      actor_loop()
+    | None -> ()
   let send_localy pid digest buf = 
     match find_instance pid with
     |Some t ->
       Actor.receive t digest buf;
-      Channel.send arb.actor_ch t
+      Channel.send arb.actor_ch (Step t)
     |None ->
       Log.debug (fun m -> m "send_locally error: not_found\n")
 
@@ -88,8 +93,9 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
       )
 
   let run () = 
-    let _ = Luv.Thread.create (actor_loop) (* Join this later *) in
-    Luv.Loop.run () |> ignore
+    let t = Luv.Thread.create (actor_loop) |> Result.get_ok (* Join this later *) in
+    (Luv.Loop.run ()) |> ignore;
+    Luv.Thread.join t |> ignore
 
   let spawn actor = 
     let pid = Pid.create B.server_ip B.server_port in
@@ -149,11 +155,22 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
   let rec exit pid a =
     find_instance_pid pid
     |> Option.iter 
-      (fun i -> 
-         Actor.link_iter (fun p -> exit p a) i;
-         unregister_all pid;
-         remove_instance_pid pid
-      )
+      (fun i ->
+         if Actor.has_flag i `Trap_exit then 
+           begin
+             Log.debug (fun m -> m "trapped exit pid: %s" (Pid.to_string pid));
+             send (Actor.selfPid i) (module System.Msg_exit) a
+           end 
+         else
+           begin
+             Log.debug (fun m -> m "exiting pid: %s" (Pid.to_string pid));
+             remove_instance_pid pid; (* Maybe introduce statuses like Deleting/Active etc.*)
+             Actor.link_iter (fun p -> exit p a) i;
+             unregister_all pid;
+           end 
+      );
+    if _count_instance () = 0 then
+      Channel.send arb.actor_ch End
 end
 
 module Make(B: Backend.B) = Make_log(B)(Log.Log)

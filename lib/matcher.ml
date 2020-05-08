@@ -17,7 +17,7 @@ let rec react matchers digest msg =
   match matchers with
   | [] ->
     Error "no match"
-  | m :: rest -> 
+  | m :: rest ->
     match m digest msg with
     | Error _ -> react rest digest msg
     | _ -> Ok()

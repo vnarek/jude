@@ -12,10 +12,9 @@ module Msg = struct
 end
 
 module Msg_exit = struct
-  open Bin_prot.Std
 
-  type t = [`Normal
-           | `Exception of string
-           | `IllegalState of string
-           ] [@@deriving bin_io]
+  type t = [
+    |`Normal of Pid.t
+    | `Error of Pid.t
+  ] [@@deriving bin_io]
 end
