@@ -44,7 +44,7 @@ let send t a =
   SyncQueue.send t.queue a;
   Luv.Condition.signal t.cond
 
-let rec recv t =
+let rec recv t = (*TODO: Not default option *)
   Luv.Mutex.lock t.mux;
   match SyncQueue.pop t.queue with
   | Some x ->

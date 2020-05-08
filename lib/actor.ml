@@ -8,6 +8,7 @@ type t = {
   mailbox: (string * bytes) Mailbox.t;
   mutable cont: Matcher.t ref;
   links: Pid.t set;
+  monitors: Pid.t set;
   flags: process_flags set
 }
 
@@ -18,6 +19,7 @@ let create pid =
     cont = ref Matcher.sink;
     mailbox = mailbox;
     links = Hashtbl.create 15;
+    monitors = Hashtbl.create 15;
     flags = Hashtbl.create 1;
   }
 
@@ -42,6 +44,8 @@ let link_iter fn a = Hashtbl.iter (fun a _ -> fn a) a.links
 
 let set_flag t p =
   Hashtbl.replace t.flags p ()
+
+let unset_flag t p = Hashtbl.remove t.flags p
 
 let has_flag t p =
   Hashtbl.find_opt t.flags p

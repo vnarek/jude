@@ -60,15 +60,10 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
 
   let find_instance_pid Pid.{id;_} = find_instance id
 
-  let rec actor_loop () =
-    match Channel.recv arb.actor_ch with
-    | Some(End) -> Luv.Async.send async_stop |> ignore
-    | Some(Step t) ->
-      Actor.step t
-      |> Result.iter_error (fun r ->
-          Log.debug (fun m -> m "receive: %s" r));
-      actor_loop()
-    | None -> ()
+
+
+
+
   let send_localy pid digest buf = 
     match find_instance pid with
     |Some t ->
@@ -92,10 +87,6 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
          | _ -> Log.warn (fun m -> m "this should never happen")
       )
 
-  let run () = 
-    let t = Luv.Thread.create (actor_loop) |> Result.get_ok (* Join this later *) in
-    (Luv.Loop.run ()) |> ignore;
-    Luv.Thread.join t |> ignore
 
   let spawn actor = 
     let pid = Pid.create B.server_ip B.server_port in
@@ -171,6 +162,27 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
       );
     if _count_instance () = 0 then
       Channel.send arb.actor_ch End
+
+  let rec actor_loop () =
+    match Channel.recv arb.actor_ch with
+    | Some(End) -> Luv.Async.send async_stop |> ignore
+    | Some(Step t) -> begin
+        try 
+          Actor.step t
+          |> Result.iter_error (fun r ->
+              Log.debug (fun m -> m "receive: %s" r));
+        with 
+        | e -> 
+          let err = `Error (Printexc.to_string e, Actor.selfPid t) in
+          exit (Actor.selfPid t) err;
+      end;
+      actor_loop()
+    | None -> ()
+
+  let run () = 
+    let t = Luv.Thread.create (actor_loop) |> Result.get_ok (* Join this later *) in
+    (Luv.Loop.run ()) |> ignore;
+    Luv.Thread.join t |> ignore
 end
 
 module Make(B: Backend.B) = Make_log(B)(Log.Log)
