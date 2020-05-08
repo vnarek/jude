@@ -11,6 +11,8 @@ module type ARBITER = sig
   val unregister: string -> unit
   val get_name: string -> Pid.t option
   val exit: Pid.t -> System.Msg_exit.t -> unit
+  val unmonitor: Pid.t -> Pid.t -> unit
+  val monitor: Pid.t -> Pid.t -> unit
 end
 
 module Make_log : functor (B: Backend.B)(Log: Logs.LOG) -> ARBITER

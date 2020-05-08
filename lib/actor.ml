@@ -42,6 +42,12 @@ let link a b = Hashtbl.add a.links b ()
 
 let link_iter fn a = Hashtbl.iter (fun a _ -> fn a) a.links
 
+let monitor a b = Hashtbl.add b.monitors a ()
+
+let unmonitor a b = Hashtbl.remove b.monitors a
+
+let monitor_iter fn a = Hashtbl.iter (fun a _ -> fn a) a.monitors
+
 let set_flag t p =
   Hashtbl.replace t.flags p ()
 

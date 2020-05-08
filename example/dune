@@ -1,4 +1,4 @@
 (executables
     (libraries luv jude)
-    (names ping factorial actor_link)
+    (names ping factorial actor_link actor_monitor)
     (preprocess (pps ppx_bin_prot)))

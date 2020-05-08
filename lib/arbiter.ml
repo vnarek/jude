@@ -20,6 +20,8 @@ module type ARBITER = sig
   val unregister: string -> unit
   val get_name: string -> Pid.t option
   val exit: Pid.t -> System.Msg_exit.t -> unit
+  val unmonitor: Pid.t -> Pid.t -> unit
+  val monitor: Pid.t -> Pid.t -> unit
 end
 
 module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
@@ -41,7 +43,7 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
     Hashtbl.replace arb.actors name instance;
     Luv.Rwlock.wrunlock arb.mux
 
-  let _count_instance () =
+  let count_instance () =
     Luv.Rwlock.rdlock arb.mux;
     let num = Hashtbl.length arb.actors in
     Luv.Rwlock.rdunlock arb.mux;
@@ -59,10 +61,6 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
     Luv.Rwlock.wrunlock arb.mux
 
   let find_instance_pid Pid.{id;_} = find_instance id
-
-
-
-
 
   let send_localy pid digest buf = 
     match find_instance pid with
@@ -130,6 +128,18 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
         Actor.link b (Actor.selfPid a);
       )
 
+  let monitor a b =
+    find_instance_pid b
+    |> Option.iter (fun b -> 
+        Actor.monitor a b;
+      )
+
+  let unmonitor a b =
+    find_instance_pid b
+    |> Option.iter (fun b ->
+        Actor.unmonitor a b;
+      )
+
   let spawn_link a actor =
     let pid = spawn actor in
     link a pid;
@@ -144,24 +154,29 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
   let get_name = Registry.get_name arb.registry
 
   let rec exit pid a =
-    find_instance_pid pid
-    |> Option.iter 
-      (fun i ->
-         if Actor.has_flag i `Trap_exit then 
-           begin
-             Log.debug (fun m -> m "trapped exit pid: %s" (Pid.to_string pid));
-             send (Actor.selfPid i) (module System.Msg_exit) a
-           end 
-         else
-           begin
-             Log.debug (fun m -> m "exiting pid: %s" (Pid.to_string pid));
-             remove_instance_pid pid; (* Maybe introduce statuses like Deleting/Active etc.*)
-             Actor.link_iter (fun p -> exit p a) i;
-             unregister_all pid;
-           end 
-      );
-    if _count_instance () = 0 then
+    let o = find_instance_pid pid in
+    Option.iter (monitors_on_exit a) o;
+    Option.iter (links_on_exit a) o;
+    if count_instance () = 0 then
       Channel.send arb.actor_ch End
+  and monitors_on_exit a actor =
+    Actor.monitor_iter (fun p -> 
+        send p (module System.Msg_exit) a
+      ) actor
+  and links_on_exit a actor  =
+    let pid = Actor.selfPid actor in
+    if Actor.has_flag actor `Trap_exit then 
+      begin
+        Log.debug (fun m -> m "trapped exit pid: %s" (Pid.to_string pid));
+        send pid (module System.Msg_exit) a
+      end 
+    else
+      begin
+        Log.debug (fun m -> m "exiting pid: %s" (Pid.to_string pid));
+        remove_instance_pid pid; (* Maybe introduce statuses like Deleting/Active etc.*)
+        Actor.link_iter (fun p -> exit p a) actor;
+        unregister_all pid;
+      end 
 
   let rec actor_loop () =
     match Channel.recv arb.actor_ch with

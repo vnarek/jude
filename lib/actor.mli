@@ -14,3 +14,6 @@ val link_iter: (Pid.t -> unit) -> t -> unit
 val set_flag: t -> process_flags -> unit
 val has_flag: t -> process_flags -> bool
 val unset_flag: t -> process_flags -> unit
+val monitor: Pid.t -> t -> unit
+val unmonitor: Pid.t -> t -> unit
+val monitor_iter: (Pid.t -> unit) -> t -> unit
