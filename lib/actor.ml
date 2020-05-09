@@ -12,6 +12,8 @@ type t = {
   flags: process_flags set
 }
 
+type beh = t -> Matcher.t
+
 let create pid =
   let mailbox = Mailbox.create () |> Result.get_ok in
   {

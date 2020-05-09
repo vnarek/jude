@@ -1,4 +1,5 @@
 type t
+type beh = t -> Matcher.t
 
 type error = Digest_mismatch of string * string
 type process_flags = [`Trap_exit]
