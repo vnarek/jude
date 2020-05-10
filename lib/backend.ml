@@ -70,7 +70,7 @@ module Discovery = struct
         let buf = [Luv.Buffer.from_bytes data] in
         let send_addr = Luv.Sockaddr.ipv4 "224.100.0.1" 6999 |> Result.get_ok in
         Luv.UDP.send t.socket buf send_addr @@ function
-        |Error e -> report_err "Sending discovery: %s" e
+        |Error e -> report_err "error sending discovery: %s" e
         | _ -> ()
 
       ) |> Result.get_ok
@@ -165,9 +165,9 @@ module Make_log(C: CONFIG)(Log: Logs.LOG): B = struct
     Discovery.start state.discovery 
       (fun msg _sock ->
          let destination = (msg.ip, msg.port) in
-         let client = connect destination in
          match Hashtbl.find_opt state.clients destination with
          | None -> 
+           let client = connect destination in
            Hashtbl.replace state.clients destination client
          | _ -> ()
       )
