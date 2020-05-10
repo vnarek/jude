@@ -1,3 +1,5 @@
+open Log
+
 module type CONFIG = sig
   val server_ip: string
   val server_port: int
@@ -9,25 +11,78 @@ module DefaultConfig : CONFIG = struct
 end
 
 module type B = sig
-  type t = Luv.TCP.t
-
   val server_ip : string
   val server_port : int
   val server_address : Luv.Sockaddr.t
-  val listen : (Luv.TCP.t -> Luv.Buffer.t -> unit) -> unit
+  val start: (Luv.TCP.t -> Luv.Buffer.t -> unit) -> unit
   val connect : (string * int) -> Luv.TCP.t
   val send: (string * int) -> Luv.Buffer.t -> unit
 end
 
+let report_err str e = Logs.err @@ fun m -> m str (Luv.Error.strerror e)
+
+module Discovery_msg = struct
+  open Bin_prot.Std
+
+  type t = {
+    ip: string;
+    port: int
+  } [@@deriving bin_io]
+
+end
+
+module Discovery = struct
+  type t = {
+    discovery: Discovery_msg.t;
+    socket: Luv.UDP.t;
+  }
+
+  let create ip port = 
+    let socket = Luv.UDP.init () |> Result.get_ok in
+    let recv_address = Luv.Sockaddr.ipv4 "0.0.0.0" 6999 |> Result.get_ok in
+    Luv.UDP.bind ~reuseaddr:true socket recv_address |> Result.get_ok;
+    let _ = 
+      Luv.UDP.set_membership socket ~group:"224.100.0.1" ~interface:"0.0.0.0" `JOIN_GROUP |> Result.get_ok in
+    {
+      discovery={
+        ip;
+        port
+      };
+      socket
+    }
+
+  let start t fn =
+    Luv.UDP.recv_start t.socket begin function
+      | Error e -> 
+        report_err "Read error: %s" e;
+      | Ok (_ , None, _) -> 
+        Log.debug (fun m -> m "got ping from")
+      | Ok (buffer, Some client, _flags) ->
+        let buffer = Luv.Buffer.to_bytes buffer in
+        match Binable.from_bytes (module Discovery_msg) buffer with
+        | Error e -> Log.warn (fun m -> m "discovery msg err: %s" e)
+        | Ok msg -> fn msg client
+    end;
+    let timer = Luv.Timer.init () |> Result.get_ok in
+    Luv.Timer.start timer ~repeat:3000 0 (fun _ ->
+
+        let _, data = Binable.to_bytes (module Discovery_msg) t.discovery in
+        let buf = [Luv.Buffer.from_bytes data] in
+        let send_addr = Luv.Sockaddr.ipv4 "224.100.0.1" 6999 |> Result.get_ok in
+        Luv.UDP.send t.socket buf send_addr @@ function
+        |Error e -> report_err "Sending discovery: %s" e
+        | _ -> ()
+
+      ) |> Result.get_ok
+end
+
 
 module Make_log(C: CONFIG)(Log: Logs.LOG): B = struct
-
   include C
 
-  type t = Luv.TCP.t
-
-  type state = {
+  type t = {
     server: Luv.TCP.t;
+    discovery: Discovery.t;
     clients: ((string * int), Luv.TCP.t) Hashtbl.t;
     send_ch: ((string * int) * Luv.Buffer.t) Channel.t
   }
@@ -41,11 +96,11 @@ module Make_log(C: CONFIG)(Log: Logs.LOG): B = struct
 
   let state = {
     server = create_arbiter ();
+    discovery = Discovery.create C.server_ip C.server_port;
     clients = Hashtbl.create 100;
     send_ch = Channel.create ()
   }
 
-  let report_err str e = Logs.err @@ fun m -> m str (Luv.Error.strerror e)
 
   let connect (address, port) =
     let client = Luv.TCP.init () |> Result.get_ok in
@@ -53,10 +108,10 @@ module Make_log(C: CONFIG)(Log: Logs.LOG): B = struct
     Luv.TCP.connect client sock_addr (fun e -> 
         match e with
         | Error e ->
-          report_err "Connect error: %s\n" e
+          report_err "Connect error: %s" e
         | Ok () -> Luv.Stream.read_start client begin function
             | Error e ->
-              report_err "Read error: %s\n" e;
+              report_err "Read error: %s" e;
               Hashtbl.remove state.clients (address, port);
               Luv.Handle.close client ignore
             | _ -> ()
@@ -67,36 +122,33 @@ module Make_log(C: CONFIG)(Log: Logs.LOG): B = struct
   let async_send_to_client =
     Luv.Async.init (fun _ ->
         Channel.consume state.send_ch (fun (destination, buf) ->
-            let client = match Hashtbl.find_opt state.clients destination with
-              | Some client -> client
-              | None ->
-                let client = connect destination in
-                Hashtbl.add state.clients destination client;
-                client
-            in
-            Luv.Stream.write client [buf] (fun e _ -> 
-                match e with 
-                | Error e -> report_err "Write error: %s\n" e
-                | Ok () -> ()
-              );
+            match Hashtbl.find_opt state.clients destination with
+            | Some client ->
+              Luv.Stream.write client [buf] (fun e _ -> 
+                  match e with 
+                  | Error e -> report_err "Write error: %s" e
+                  | Ok () -> ()
+                );
+            | None -> 
+              Log.debug (fun m -> m "client not found");
           );
       ) |> Result.get_ok
 
   let send destination buf = 
     Channel.send state.send_ch (destination, buf);
     Luv.Async.send async_send_to_client 
-    |> Result.iter_error (report_err "Send error: %s \n")
+    |> Result.iter_error (report_err "Send error: %s")
 
-  let listen fn = 
+  let start fn = 
     Luv.Stream.listen state.server begin function
       | Error e ->
-        report_err "Listen error: %s\n" e
+        report_err "Listen error: %s" e
       | Ok () ->
         let client = Luv.TCP.init () |> Result.get_ok in
 
         match Luv.Stream.accept ~server:state.server ~client with
         | Error e ->
-          report_err "Accept error: %s\n" e;
+          report_err "Accept error: %s" e;
           Luv.Handle.close client ignore
         | Ok () ->
           Luv.Stream.read_start client begin function
@@ -104,12 +156,21 @@ module Make_log(C: CONFIG)(Log: Logs.LOG): B = struct
               Log.debug (fun m -> m "client hangup");
               Luv.Handle.close client ignore
             | Error e ->
-              report_err "Read error: %s\n" e;
+              report_err "Read error: %s" e;
               Luv.Handle.close client ignore
             | Ok buffer ->
               fn client buffer
           end;
-    end
+    end;
+    Discovery.start state.discovery 
+      (fun msg _sock ->
+         let destination = (msg.ip, msg.port) in
+         let client = connect destination in
+         match Hashtbl.find_opt state.clients destination with
+         | None -> 
+           Hashtbl.replace state.clients destination client
+         | _ -> ()
+      )
 end
 
-module Make(C: CONFIG) = Make_log(C)(Log.Log)
+module Make(C: CONFIG) = Make_log(C)(Log)

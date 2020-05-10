@@ -71,7 +71,7 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
       Log.debug (fun m -> m "send_locally error: not_found\n")
 
   let init () =
-    B.listen
+    B.start
       (fun conn buf ->
          let buf = Luv.Buffer.to_bytes buf in
          match Binable.from_bytes (module System.Msg) buf |> Result.get_ok (*UPRAVIT!*) with
