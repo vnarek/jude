@@ -9,6 +9,7 @@ module type ARBITER = sig
   val register: string -> Pid.t -> unit
   val unregister: string -> unit
   val get_name: string -> Pid.t option
+  val resolve_name: string -> Pid.t -> unit
   val exit: Pid.t -> System.Msg_exit.t -> unit
   val unmonitor: Pid.t -> Pid.t -> unit
   val monitor: Pid.t -> Pid.t -> unit

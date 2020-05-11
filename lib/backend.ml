@@ -14,12 +14,20 @@ module type B = sig
   val server_ip : string
   val server_port : int
   val server_address : Luv.Sockaddr.t
-  val start: (Luv.TCP.t -> Luv.Buffer.t -> unit) -> unit
+  val start: on_disc:(string * int -> unit) -> on_tcp:(Luv.TCP.t -> Luv.Buffer.t -> unit) -> unit
   val connect : (string * int) -> Luv.TCP.t
   val send: (string * int) -> Luv.Buffer.t -> unit
 end
 
 let report_err str e = Logs.err @@ fun m -> m str (Luv.Error.strerror e)
+let default_err = format_of_string "error: %s"
+
+let handle_res ?(on_error=ignore) ?(msg=default_err) fn res =
+  match res with
+  | Error e -> 
+    report_err msg e;
+    on_error e;
+  | Ok k -> fn k
 
 module Discovery_msg = struct
   open Bin_prot.Std
@@ -52,27 +60,27 @@ module Discovery = struct
     }
 
   let start t fn =
-    Luv.UDP.recv_start t.socket begin function
-      | Error e -> 
-        report_err "Read error: %s" e;
-      | Ok (_ , None, _) -> 
-        Log.debug (fun m -> m "got ping from")
-      | Ok (buffer, Some client, _flags) ->
-        let buffer = Luv.Buffer.to_bytes buffer in
-        match Binable.from_bytes (module Discovery_msg) buffer with
-        | Error e -> Log.warn (fun m -> m "discovery msg err: %s" e)
-        | Ok msg -> fn msg client
-    end;
+    Luv.UDP.recv_start t.socket @@ 
+    handle_res 
+      ~msg:"read error: %s" 
+      (function
+        | (_ , None, _) -> ()
+        | (buffer, Some client, _flags) ->
+          let buffer = Luv.Buffer.to_bytes buffer in
+          match Binable.from_bytes (module Discovery_msg) buffer with
+          | Error e -> Log.warn (fun m -> m "discovery msg err: %s" e)
+          | Ok msg ->
+            if msg <> t.discovery then
+              fn msg client
+      );
     let timer = Luv.Timer.init () |> Result.get_ok in
     Luv.Timer.start timer ~repeat:3000 0 (fun _ ->
-
         let _, data = Binable.to_bytes (module Discovery_msg) t.discovery in
         let buf = [Luv.Buffer.from_bytes data] in
         let send_addr = Luv.Sockaddr.ipv4 "224.100.0.1" 6999 |> Result.get_ok in
         Luv.UDP.send t.socket buf send_addr @@ function
         |Error e -> report_err "error sending discovery: %s" e
         | _ -> ()
-
       ) |> Result.get_ok
 end
 
@@ -105,17 +113,14 @@ module Make_log(C: CONFIG)(Log: Logs.LOG): B = struct
   let connect (address, port) =
     let client = Luv.TCP.init () |> Result.get_ok in
     let sock_addr = Luv.Sockaddr.ipv4 address port |> Result.get_ok in 
-    Luv.TCP.connect client sock_addr (fun e -> 
-        match e with
-        | Error e ->
-          report_err "Connect error: %s" e
-        | Ok () -> Luv.Stream.read_start client begin function
-            | Error e ->
-              report_err "Read error: %s" e;
+    Luv.TCP.connect client sock_addr @@ handle_res ~msg:"connect error: %s" (fun _ -> 
+        Luv.Stream.read_start client @@ handle_res ~msg:"read error: %s"
+          ~on_error:(fun _ ->
+              Log.debug (fun m -> m "read error");
               Hashtbl.remove state.clients (address, port);
-              Luv.Handle.close client ignore
-            | _ -> ()
-          end;
+              Luv.Handle.close client ignore  
+            )
+          ignore       
       );
     client
 
@@ -137,38 +142,38 @@ module Make_log(C: CONFIG)(Log: Logs.LOG): B = struct
   let send destination buf = 
     Channel.send state.send_ch (destination, buf);
     Luv.Async.send async_send_to_client 
-    |> Result.iter_error (report_err "Send error: %s")
+    |> handle_res ~msg:"send error: %s" ignore
 
-  let start fn = 
-    Luv.Stream.listen state.server begin function
-      | Error e ->
-        report_err "Listen error: %s" e
-      | Ok () ->
-        let client = Luv.TCP.init () |> Result.get_ok in
-
-        match Luv.Stream.accept ~server:state.server ~client with
-        | Error e ->
-          report_err "Accept error: %s" e;
-          Luv.Handle.close client ignore
-        | Ok () ->
-          Luv.Stream.read_start client begin function
-            | Error `EOF ->
-              Log.debug (fun m -> m "client hangup");
-              Luv.Handle.close client ignore
-            | Error e ->
-              report_err "Read error: %s" e;
-              Luv.Handle.close client ignore
-            | Ok buffer ->
-              fn client buffer
-          end;
-    end;
+  let start ~on_disc ~on_tcp = 
+    Luv.Stream.listen state.server @@ handle_res ~msg:"listen error: %s" 
+      (fun _ ->
+         let client = Luv.TCP.init () |> Result.get_ok in
+         Luv.Stream.accept ~server:state.server ~client
+         |> handle_res 
+           ~msg:"accept error: %s"
+           ~on_error:(fun _ -> Luv.Handle.close client ignore)
+           (fun _ -> 
+              Luv.Stream.read_start client begin function
+                | Error `EOF ->
+                  Log.debug (fun m -> m "client hangup");
+                  Luv.Handle.close client ignore
+                | Error e ->
+                  report_err "read error: %s" e;
+                  Luv.Handle.close client ignore
+                | Ok buffer ->
+                  on_tcp client buffer
+              end
+           )
+      );
     Discovery.start state.discovery 
       (fun msg _sock ->
          let destination = (msg.ip, msg.port) in
+         Log.debug (fun m -> m "number of clients: %d" @@ Hashtbl.length state.clients);
          match Hashtbl.find_opt state.clients destination with
          | None -> 
            let client = connect destination in
-           Hashtbl.replace state.clients destination client
+           Hashtbl.replace state.clients destination client;
+           on_disc destination
          | _ -> ()
       )
 end

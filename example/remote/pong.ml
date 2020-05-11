@@ -13,14 +13,15 @@ let pong () ctx =
   Matcher.react [
     Matcher.case (module PingMsg) @@ function
     | Ping senderPid -> 
-      Logs.app (fun m -> m "got PING!");
+      Logs.app (fun m -> m "got PONG!");
       Luv.Time.sleep 1000;
       Arbiter.send senderPid (module PongMsg) (Pong selfPid)
   ]
 
 let () = 
+  Logs.Src.set_level Jude.Log.log_src (Some Debug);
+  Logs.set_reporter (Logs.format_reporter ());
   Arbiter.init();
   let pid = Arbiter.spawn (pong ()) in
-
-  Pid.to_string pid |> print_endline;
+  Arbiter.register "pong" pid;
   Arbiter.run ()

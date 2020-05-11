@@ -19,6 +19,7 @@ module type ARBITER = sig
   val register: string -> Pid.t -> unit
   val unregister: string -> unit
   val get_name: string -> Pid.t option
+  val resolve_name: string -> Pid.t -> unit
   val exit: Pid.t -> System.Msg_exit.t -> unit
   val unmonitor: Pid.t -> Pid.t -> unit
   val monitor: Pid.t -> Pid.t -> unit
@@ -68,31 +69,7 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
       Actor.receive t digest buf;
       Channel.send arb.actor_ch (Step t)
     |None ->
-      Log.debug (fun m -> m "send_locally error: not_found\n")
-
-  let init () =
-    B.start
-      (fun conn buf ->
-         let buf = Luv.Buffer.to_bytes buf in
-         match Binable.from_bytes (module System.Msg) buf |> Result.get_ok (*UPRAVIT!*) with
-         | Syn -> 
-           let (_, buf') = Binable.to_bytes (module System.Msg) System.Msg.Ready in
-           let buf = Luv.Buffer.from_bytes buf' in
-           Luv.Stream.write conn [buf] (fun _ _ -> ());
-         | ToActor (pid, digest, msg) ->
-           Log.debug (fun m -> m "to_actor(dest:%s)" pid);
-           send_localy pid digest msg;
-         | _ -> Log.warn (fun m -> m "this should never happen")
-      )
-
-
-  let spawn actor = 
-    let pid = Pid.create B.server_ip B.server_port in
-    let t = Actor.create pid in
-    let id = Pid.id pid in
-    save_instance t id; (* Lepší jako zpráva actoru arbiter *)
-    Actor.init actor t;
-    pid
+      Log.debug (fun m -> m "send_locally error: not_found")
 
   type location = Local of string | Remote of (string * (string * int))
 
@@ -115,6 +92,55 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
       let (_, buf) = Binable.to_bytes (module System.Msg) msg in 
       let buf = Luv.Buffer.from_bytes buf in
       B.send addr_port buf
+
+  let register = Registry.register ~local:true arb.registry
+
+  let unregister = Registry.unregister arb.registry
+
+  let unregister_all = Registry.unregister_all arb.registry
+
+  let get_name = Registry.get_name arb.registry
+
+  let resolve_name name customer = 
+    Registry.on_name arb.registry name (fun pid ->
+        send customer (module System.Resolution_msg) @@ Success (name, pid)
+      )
+
+  let init () =
+    B.start
+      ~on_tcp:(fun conn buf ->
+          let buf = Luv.Buffer.to_bytes buf in (*TODO: Get rid of this conversion *)
+          match Binable.from_bytes (module System.Msg) buf |> Result.get_ok (*UPRAVIT!*) with
+          | Syn names->
+            List.iter (fun (n, pid) ->
+                Log.debug (fun m -> m "registering name: %s" n);
+                Registry.register ~local:false arb.registry n pid;
+              ) names;
+            let (_, buf') = Binable.to_bytes (module System.Msg) System.Msg.Ready in
+            let buf = Luv.Buffer.from_bytes buf' in
+            Luv.Stream.write conn [buf] (fun _ _ -> ());
+          | ToActor (pid, digest, msg) ->
+            send_localy pid digest msg;
+          | _ -> Log.warn (fun m -> m "this should never happen")
+        )
+      ~on_disc:(fun dest ->
+          let ip, port = dest in
+          Log.debug (fun m -> m "discovered: %s:%d" ip port);
+          let names = Registry.get_public_names arb.registry in
+          let msg = System.Msg.Syn names in
+          let _, b = Binable.to_bytes (module System.Msg) msg in
+          let buffer = Luv.Buffer.from_bytes b in
+          B.send dest buffer
+        )
+
+
+  let spawn actor = 
+    let pid = Pid.create B.server_ip B.server_port in
+    let t = Actor.create pid in
+    let id = Pid.id pid in
+    save_instance t id; (* Lepší jako zpráva actoru arbiter *)
+    Actor.init actor t;
+    pid
 
   let link a b =
     Option.bind (find_instance_pid a) (fun a ->
@@ -144,14 +170,6 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
     let pid = spawn actor in
     link a pid;
     pid
-
-  let register = Registry.register arb.registry
-
-  let unregister = Registry.unregister arb.registry
-
-  let unregister_all = Registry.unregister_all arb.registry
-
-  let get_name = Registry.get_name arb.registry
 
   let rec exit pid a =
     let o = find_instance_pid pid in

@@ -71,3 +71,22 @@ module Supervisor(A: Arbiter.ARBITER) = struct
       ]
     )
 end
+
+module Resolver(A: Arbiter.ARBITER) = struct
+  let resolve name fn = 
+    (A.spawn (fun ctx ->
+         let self_pid = Actor.selfPid ctx in
+         A.resolve_name name self_pid;
+
+         Matcher.(
+           react [
+             case (module System.Resolution_msg) (function
+                 | Success (_, pid) ->
+                   ignore (A.spawn (fn pid) : Pid.t);
+                   A.exit self_pid @@ `Normal self_pid;
+               )
+           ])
+       )
+     : Pid.t)
+    |> ignore
+end
