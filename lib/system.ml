@@ -5,8 +5,8 @@ module Msg = struct
   type pid = string [@@deriving bin_io]
 
   type t =  
-    |Syn of (string * Pid.t) list
-    | Ready
+    |Syn of (string * int)
+    | Ready of ((string * int) * (string * Pid.t) list * bool)
     | ToActor of (pid * digest * bytes) [@@deriving bin_io]
 end
 

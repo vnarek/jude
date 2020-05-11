@@ -108,26 +108,33 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
 
   let init () =
     B.start
-      ~on_tcp:(fun conn buf ->
+      ~on_tcp:(fun _conn buf ->
           let buf = Luv.Buffer.to_bytes buf in (*TODO: Get rid of this conversion *)
           match Binable.from_bytes (module System.Msg) buf |> Result.get_ok (*UPRAVIT!*) with
-          | Syn names->
+          | Syn dest ->
+            let names = Registry.get_public_names arb.registry in
+            let source = (B.server_ip, B.server_port) in
+            let (_, buf) = Binable.to_bytes (module System.Msg) @@ System.Msg.Ready (source, names, false) in
+            let buf = Luv.Buffer.from_bytes buf in
+            B.send dest buf;
+          | ToActor (pid, digest, msg) ->
+            send_localy pid digest msg;
+          | Ready (dest, names, ack) ->
             List.iter (fun (n, pid) ->
                 Log.debug (fun m -> m "registering name: %s" n);
                 Registry.register ~local:false arb.registry n pid;
               ) names;
-            let (_, buf') = Binable.to_bytes (module System.Msg) System.Msg.Ready in
-            let buf = Luv.Buffer.from_bytes buf' in
-            Luv.Stream.write conn [buf] (fun _ _ -> ());
-          | ToActor (pid, digest, msg) ->
-            send_localy pid digest msg;
-          | _ -> Log.warn (fun m -> m "this should never happen")
+            if not ack then
+              let names = Registry.get_public_names arb.registry in
+              let (_, buf) = Binable.to_bytes (module System.Msg) @@ 
+                System.Msg.Ready ((B.server_ip, B.server_port), names, true) in
+              let buf = Luv.Buffer.from_bytes buf in
+              B.send dest buf;
         )
       ~on_disc:(fun dest ->
           let ip, port = dest in
           Log.debug (fun m -> m "discovered: %s:%d" ip port);
-          let names = Registry.get_public_names arb.registry in
-          let msg = System.Msg.Syn names in
+          let msg = System.Msg.Syn (B.server_ip, B.server_port) in
           let _, b = Binable.to_bytes (module System.Msg) msg in
           let buffer = Luv.Buffer.from_bytes b in
           B.send dest buffer

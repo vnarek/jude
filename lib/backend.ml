@@ -70,8 +70,9 @@ module Discovery = struct
           match Binable.from_bytes (module Discovery_msg) buffer with
           | Error e -> Log.warn (fun m -> m "discovery msg err: %s" e)
           | Ok msg ->
-            if msg <> t.discovery then
+            if msg <> t.discovery then begin
               fn msg client
+            end
       );
     let timer = Luv.Timer.init () |> Result.get_ok in
     Luv.Timer.start timer ~repeat:3000 0 (fun _ ->
@@ -109,6 +110,21 @@ module Make_log(C: CONFIG)(Log: Logs.LOG): B = struct
     send_ch = Channel.create ()
   }
 
+  let _add_client client =
+    Luv.TCP.getpeername client
+    |> handle_res ~msg:"add_client: %s" (fun sock ->
+        Option.bind (Luv.Sockaddr.to_string sock) (fun a ->
+            Option.map (fun p ->
+                (a, p)
+              ) (Luv.Sockaddr.port sock)
+          )
+        |> Option.iter (fun dest ->
+            match Hashtbl.find_opt state.clients dest with
+            | None ->
+              Hashtbl.replace state.clients dest client;
+            | _ -> ()
+          )
+      )
 
   let connect (address, port) =
     let client = Luv.TCP.init () |> Result.get_ok in
@@ -127,15 +143,19 @@ module Make_log(C: CONFIG)(Log: Logs.LOG): B = struct
   let async_send_to_client =
     Luv.Async.init (fun _ ->
         Channel.consume state.send_ch (fun (destination, buf) ->
-            match Hashtbl.find_opt state.clients destination with
-            | Some client ->
-              Luv.Stream.write client [buf] (fun e _ -> 
-                  match e with 
-                  | Error e -> report_err "Write error: %s" e
-                  | Ok () -> ()
-                );
-            | None -> 
-              Log.debug (fun m -> m "client not found");
+            let client = 
+              match Hashtbl.find_opt state.clients destination with
+              | Some client -> client
+              | None -> 
+                let client = connect destination in
+                Hashtbl.add state.clients destination client;
+                client 
+            in
+            Luv.Stream.write client [buf] (fun e _ -> 
+                match e with 
+                | Error e -> report_err "Write error: %s" e
+                | Ok () -> ()
+              );
           );
       ) |> Result.get_ok
 

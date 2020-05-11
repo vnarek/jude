@@ -12,7 +12,7 @@ module Resolver = Beh.Resolver(Arbiter)
 
 let ping () =
   Resolver.resolve "pong" (fun pong_pid ctx ->
-      Luv.Time.sleep 1000;
+      (*Luv.Time.sleep 1000;*)
 
       let self_pid = Actor.selfPid ctx in
       Arbiter.send pong_pid (module PingMsg) (Ping self_pid);
