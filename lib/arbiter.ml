@@ -106,30 +106,34 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
         send customer (module System.Resolution_msg) @@ Success (name, pid)
       )
 
+  let send_ready dest ack = 
+    let names = Registry.get_public_names arb.registry in
+    let ready = System.Msg.Ready ({
+        source=(B.server_ip, B.server_port);
+        names=names;
+        ack=ack
+      }) in
+    let (_, buf) = Binable.to_bytes (module System.Msg) ready in
+    let buf = Luv.Buffer.from_bytes buf in
+    B.send dest buf
+
   let init () =
     B.start
       ~on_tcp:(fun _conn buf ->
           let buf = Luv.Buffer.to_bytes buf in (*TODO: Get rid of this conversion *)
-          match Binable.from_bytes (module System.Msg) buf |> Result.get_ok (*UPRAVIT!*) with
-          | Syn dest ->
-            let names = Registry.get_public_names arb.registry in
-            let source = (B.server_ip, B.server_port) in
-            let (_, buf) = Binable.to_bytes (module System.Msg) @@ System.Msg.Ready (source, names, false) in
-            let buf = Luv.Buffer.from_bytes buf in
-            B.send dest buf;
+          let msg = Binable.from_bytes (module System.Msg) buf |> Result.get_ok in
+          match msg with
+          | Syn source ->
+            send_ready source false;
           | ToActor (pid, digest, msg) ->
             send_localy pid digest msg;
-          | Ready (dest, names, ack) ->
+          | Ready re ->
             List.iter (fun (n, pid) ->
                 Log.debug (fun m -> m "registering name: %s" n);
                 Registry.register ~local:false arb.registry n pid;
-              ) names;
-            if not ack then
-              let names = Registry.get_public_names arb.registry in
-              let (_, buf) = Binable.to_bytes (module System.Msg) @@ 
-                System.Msg.Ready ((B.server_ip, B.server_port), names, true) in
-              let buf = Luv.Buffer.from_bytes buf in
-              B.send dest buf;
+              ) re.names;
+            if not re.ack then
+              send_ready re.source true;
         )
       ~on_disc:(fun dest ->
           let ip, port = dest in

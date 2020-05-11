@@ -6,7 +6,11 @@ module Msg = struct
 
   type t =  
     |Syn of (string * int)
-    | Ready of ((string * int) * (string * Pid.t) list * bool)
+    | Ready of {
+        source: (string * int);
+        names: (string * Pid.t) list;
+        ack: bool
+      }
     | ToActor of (pid * digest * bytes) [@@deriving bin_io]
 end
 
