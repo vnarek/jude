@@ -14,7 +14,7 @@ let ping () =
   Resolver.resolve "pong" (fun pong_pid ctx ->
       (*Luv.Time.sleep 1000;*)
 
-      let self_pid = Actor.selfPid ctx in
+      let self_pid = Actor.self_pid ctx in
       Arbiter.send pong_pid (module PingMsg) @@ Ping (self_pid, 0);
       Matcher.react [
         Matcher.case (module PongMsg) @@ function

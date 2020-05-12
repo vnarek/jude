@@ -22,8 +22,8 @@ let rec customer num ctx =
   let o = 
     Arbiter.get_name "factorial"
     |> Option.map (fun pid ->
-        let selfPid = Actor.selfPid ctx in
-        Arbiter.send pid (module Msg_req) (Do (selfPid, num));
+        let self_pid = Actor.self_pid ctx in
+        Arbiter.send pid (module Msg_req) (Do (self_pid, num));
         Matcher.(
           react [
             case (module Msg_res) @@ function
@@ -40,12 +40,12 @@ let rec customer num ctx =
 
 
 let rec compute_fact customer num ctx =
-  let selfPid = Actor.selfPid ctx in
+  let self_pid = Actor.self_pid ctx in
   if num == 0 then begin
     Arbiter.send customer (module Msg_res) (Done (num, 1));
     Matcher.sink
   end else 
-    let _ = Arbiter.spawn (compute_fact selfPid (num - 1)) in
+    let _ = Arbiter.spawn (compute_fact self_pid (num - 1)) in
     Matcher.(
       react [
         case (module Msg_res) @@ function

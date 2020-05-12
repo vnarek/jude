@@ -163,8 +163,8 @@ module Make(B: Backend.B): ARBITER = struct
         )
       )
     |> Option.iter (fun (a, b) -> 
-        Actor.link a (Actor.selfPid b);
-        Actor.link b (Actor.selfPid a);
+        Actor.link a (Actor.self_pid b);
+        Actor.link b (Actor.self_pid a);
       )
 
   let monitor a b =
@@ -195,7 +195,7 @@ module Make(B: Backend.B): ARBITER = struct
         send p (module System.Msg_exit) a
       ) actor
   and links_on_exit a actor  =
-    let pid = Actor.selfPid actor in
+    let pid = Actor.self_pid actor in
     if Actor.has_flag actor `Trap_exit then 
       begin
         Log.debug (fun m -> m "trapped exit pid: %s" (Pid.to_string pid));
@@ -217,8 +217,8 @@ module Make(B: Backend.B): ARBITER = struct
           Actor.step t;
         with 
         | e -> 
-          let err = `Error (Printexc.to_string e, Actor.selfPid t) in
-          exit (Actor.selfPid t) err;
+          let err = `Error (Printexc.to_string e, Actor.self_pid t) in
+          exit (Actor.self_pid t) err;
       end;
       actor_loop()
     | None -> ()

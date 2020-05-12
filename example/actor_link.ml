@@ -18,39 +18,39 @@ end
 
 let rec ping ~onfailure num ctx =
 
-  let selfPid = Actor.selfPid ctx in
+  let self_pid = Actor.self_pid ctx in
   if num == 1 then
-    onfailure selfPid;
+    onfailure self_pid;
   Matcher.react [
     Matcher.case (module PingMsg) @@ function
     | Ping senderPid -> 
       Logs.app (fun m -> m "got PING!");
       Luv.Time.sleep 1000;
-      Arbiter.send senderPid (module PongMsg) (Pong selfPid);
+      Arbiter.send senderPid (module PongMsg) (Pong self_pid);
       Actor.become ctx (ping ~onfailure (num - 1))
   ]
 
 
 let pong () ctx =
   Actor.set_flag ctx `Trap_exit;
-  let selfPid = Actor.selfPid ctx in
-  let pid = Arbiter.spawn_link selfPid (ping ~onfailure:(fun pid ->  Arbiter.exit pid (`Normal selfPid)) 2) in
-  let pid' = Arbiter.spawn_link selfPid (ping ~onfailure:(fun _->  1/0 |> ignore) 2) in
-  Arbiter.send pid (module PingMsg) (PingMsg.Ping selfPid);
-  Arbiter.send pid' (module PingMsg) (PingMsg.Ping selfPid);
+  let self_pid = Actor.self_pid ctx in
+  let pid = Arbiter.spawn_link self_pid (ping ~onfailure:(fun pid ->  Arbiter.exit pid (`Normal self_pid)) 2) in
+  let pid' = Arbiter.spawn_link self_pid (ping ~onfailure:(fun _->  1/0 |> ignore) 2) in
+  Arbiter.send pid (module PingMsg) (PingMsg.Ping self_pid);
+  Arbiter.send pid' (module PingMsg) (PingMsg.Ping self_pid);
   Matcher.react [
     (Matcher.case (module PongMsg) @@ function
       | Pong senderPid ->
         Logs.app (fun m -> m "got PONG!");
         Luv.Time.sleep 1000;
-        Arbiter.send senderPid (module PingMsg) (Ping selfPid));
+        Arbiter.send senderPid (module PingMsg) (Ping self_pid));
     Matcher.case (module System.Msg_exit) @@ function
     | `Normal _ -> Logs.app (fun m -> m "normally ended ping")
     | `Error (str, _) ->  
       Logs.app (fun m -> m "abruptly ended with message: %s" str);
       Actor.unset_flag ctx `Trap_exit;
 
-      Arbiter.exit selfPid (`Normal selfPid)
+      Arbiter.exit self_pid (`Normal self_pid)
   ]
 
 

@@ -17,26 +17,26 @@ end
 
 
 let ping () ctx = 
-  let selfPid = Actor.selfPid ctx in
+  let self_pid = Actor.self_pid ctx in
   Matcher.react [
     Matcher.case (module PingMsg) @@ function
     | Ping senderPid -> 
       Logs.app (fun m -> m "got PING!");
       Luv.Time.sleep 1000;
-      Arbiter.send senderPid (module PongMsg) (Pong selfPid)
+      Arbiter.send senderPid (module PongMsg) (Pong self_pid)
   ]
 
 
 let pong () ctx =
-  let selfPid = Actor.selfPid ctx in
+  let self_pid = Actor.self_pid ctx in
   let pid = Arbiter.spawn (ping ()) in
-  Arbiter.send pid (module PingMsg) (PingMsg.Ping selfPid);
+  Arbiter.send pid (module PingMsg) (PingMsg.Ping self_pid);
   Matcher.react [
     Matcher.case (module PongMsg) @@ function
     | Pong senderPid ->
       Logs.app (fun m -> m "got PONG!");
       Luv.Time.sleep 1000;
-      Arbiter.send senderPid (module PingMsg) (Ping selfPid)
+      Arbiter.send senderPid (module PingMsg) (Ping self_pid)
   ]
 
 

@@ -4,7 +4,7 @@ type 'a set = ('a, unit) Hashtbl.t
 type process_flags = [`Trap_exit]
 
 type t = {
-  selfPid: Pid.t;
+  self_pid: Pid.t;
   mailbox: (string * bytes) Mailbox.t;
   mutable cont: Matcher.t ref;
   links: Pid.t set;
@@ -17,7 +17,7 @@ type beh = t -> Matcher.t
 let create pid =
   let mailbox = Mailbox.create () |> Result.unwrap "mailbox create" in
   {
-    selfPid = pid;
+    self_pid = pid;
     cont = ref Matcher.block;
     mailbox = mailbox;
     links = Hashtbl.create 15;
@@ -38,7 +38,7 @@ let step t =
       Result.is_error r
     )
 
-let selfPid {selfPid; _} = selfPid
+let self_pid {self_pid; _} = self_pid
 
 let become t fn = t.cont := fn t
 

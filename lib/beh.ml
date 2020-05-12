@@ -25,9 +25,9 @@ module Supervisor(A: Arbiter.ARBITER) = struct
       running=Hashtbl.create 20;
     }
 
-  let supervise selfPid name beh =
+  let supervise self_pid name beh =
     let pid = A.spawn beh in
-    A.monitor selfPid pid;
+    A.monitor self_pid pid;
     A.register name pid;
     pid
 
@@ -61,7 +61,7 @@ module Supervisor(A: Arbiter.ARBITER) = struct
 
 
   let run t ctx =
-    let self_pid = Actor.selfPid ctx in
+    let self_pid = Actor.self_pid ctx in
     init_all t self_pid;
 
     Matcher.(
@@ -75,7 +75,7 @@ end
 module Resolver(A: Arbiter.ARBITER) = struct
   let resolve name fn = 
     (A.spawn (fun ctx ->
-         let self_pid = Actor.selfPid ctx in
+         let self_pid = Actor.self_pid ctx in
          A.resolve_name name self_pid;
 
          Matcher.(

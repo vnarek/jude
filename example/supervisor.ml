@@ -34,7 +34,7 @@ let rec ping num ctx =
 
 let pong () ctx =
   let ping_pid = Arbiter.get_name "ping" |> Option.get in 
-  let self_pid = Actor.selfPid ctx in
+  let self_pid = Actor.self_pid ctx in
   Arbiter.send ping_pid (module PingMsg) @@ Ping self_pid;
   Matcher.react [
     Matcher.case (module PongMsg) @@ function

@@ -18,32 +18,32 @@ end
 
 let rec ping ~onfailure num ctx =
 
-  let selfPid = Actor.selfPid ctx in
+  let self_pid = Actor.self_pid ctx in
   if num == 1 then
-    onfailure selfPid;
+    onfailure self_pid;
   Matcher.react [
     Matcher.case (module PingMsg) @@ function
     | Ping senderPid -> 
       Logs.app (fun m -> m "got PING!");
       Luv.Time.sleep 1000;
-      Arbiter.send senderPid (module PongMsg) (Pong selfPid);
+      Arbiter.send senderPid (module PongMsg) (Pong self_pid);
       Actor.become ctx (ping ~onfailure (num - 1))
   ]
 
 
 let rec pong () ctx =
-  let selfPid = Actor.selfPid ctx in
-  let pid = Arbiter.spawn (ping ~onfailure:(fun pid ->  Arbiter.exit pid (`Normal selfPid)) 2) in
+  let self_pid = Actor.self_pid ctx in
+  let pid = Arbiter.spawn (ping ~onfailure:(fun pid ->  Arbiter.exit pid (`Normal self_pid)) 2) in
   Arbiter.register "ping" pid;
-  Arbiter.monitor selfPid pid;
-  Arbiter.send pid (module PingMsg) (PingMsg.Ping selfPid);
+  Arbiter.monitor self_pid pid;
+  Arbiter.send pid (module PingMsg) (PingMsg.Ping self_pid);
   Matcher.(
     react [
       (case (module PongMsg) @@ function
         | Pong senderPid ->
           Logs.app (fun m -> m "got PONG!");
           Luv.Time.sleep 1000;
-          Arbiter.send senderPid (module PingMsg) (Ping selfPid));
+          Arbiter.send senderPid (module PingMsg) (Ping self_pid));
       case (module System.Msg_exit) @@ function
       | _ -> 
         Logs.app (fun m -> m "restarting");
