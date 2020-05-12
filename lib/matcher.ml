@@ -19,7 +19,12 @@ let rec react matchers digest msg =
     Error "no match"
   | m :: rest ->
     match m digest msg with
-    | Error _ -> react rest digest msg
+    | Error r ->
+      Log.Log.debug (fun m -> m "mismatch: %s" r);
+      react rest digest msg
     | _ -> Ok()
 
 let sink _ _ = Ok()
+
+let block _ _ = 
+  Error "block"

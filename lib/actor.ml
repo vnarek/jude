@@ -18,7 +18,7 @@ let create pid =
   let mailbox = Mailbox.create () |> Result.get_ok in
   {
     selfPid = pid;
-    cont = ref Matcher.sink;
+    cont = ref Matcher.block;
     mailbox = mailbox;
     links = Hashtbl.create 15;
     monitors = Hashtbl.create 15;
@@ -32,9 +32,11 @@ let init fn t  =
 let receive t digest buf = Mailbox.push t.mailbox (digest, buf)
 
 let step t =
-  let o = Mailbox.take t.mailbox
-          |> Option.map @@ fun (digest, buf) -> !(t.cont) digest buf in
-  Option.value o ~default:(Error "not found")
+  Mailbox.filter t.mailbox (fun (digest, buf) ->
+      let r = !(t.cont) digest buf in 
+      Result.iter_error (fun e -> Log.Log.debug (fun m -> m "step error: %s" e)) r;
+      Result.is_ok r
+    )
 
 let selfPid {selfPid; _} = selfPid
 

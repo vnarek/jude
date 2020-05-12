@@ -23,6 +23,7 @@ module type ARBITER = sig
   val exit: Pid.t -> System.Msg_exit.t -> unit
   val unmonitor: Pid.t -> Pid.t -> unit
   val monitor: Pid.t -> Pid.t -> unit
+  val become: Actor.t -> Actor.beh -> unit
 end
 
 module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
@@ -70,6 +71,10 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
       Channel.send arb.actor_ch (Step t)
     |None ->
       Log.debug (fun m -> m "send_locally error: not_found")
+
+  let become ctx beh = 
+    Actor.become ctx beh;
+    Channel.send arb.actor_ch (Step ctx)
 
   type location = Local of string | Remote of (string * (string * int))
 
@@ -126,6 +131,7 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
           | Syn source ->
             send_ready source false;
           | ToActor (pid, digest, msg) ->
+            Log.debug (fun m -> m "send locally: %s" pid);
             send_localy pid digest msg;
           | Ready re ->
             List.iter (fun (n, pid) ->
@@ -212,9 +218,7 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
     | Some(End) -> Luv.Async.send async_stop |> ignore
     | Some(Step t) -> begin
         try 
-          Actor.step t
-          |> Result.iter_error (fun r ->
-              Log.debug (fun m -> m "receive: %s" r));
+          Actor.step t;
         with 
         | e -> 
           let err = `Error (Printexc.to_string e, Actor.selfPid t) in
