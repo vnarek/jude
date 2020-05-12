@@ -40,7 +40,8 @@ let process_on_name_callbacks t name pid =
   Hashtbl.find_opt t.on_name name
   |> Option.to_list
   |> List.flatten
-  |> List.iter @@ (fun clb -> clb pid)
+  |> List.iter @@ (fun clb -> Log.debug (fun m -> m "count"); clb pid);
+  Hashtbl.remove t.on_name name
 
 let register ~local t name pid =
   Hashtbl.replace t.names name {

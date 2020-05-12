@@ -34,8 +34,8 @@ let receive t digest buf = Mailbox.push t.mailbox (digest, buf)
 let step t =
   Mailbox.filter t.mailbox (fun (digest, buf) ->
       let r = !(t.cont) digest buf in 
-      Result.iter_error (fun e -> Log.debug (fun m -> m "step error: %s" e)) r;
-      Result.is_ok r
+      Result.iter_error (fun r -> Log.debug (fun m -> m "j %s" r)) r;
+      Result.is_error r (* Could starve the connection *)
     )
 
 let selfPid {selfPid; _} = selfPid

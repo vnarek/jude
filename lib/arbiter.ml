@@ -94,8 +94,7 @@ module Make(B: Backend.B): ARBITER = struct
       send_localy id digest msg_b
     |Remote (id, addr_port) ->
       let msg =  System.Msg.ToActor (id, digest, msg_b) in
-      let (_, buf) = Binable.to_bytes (module System.Msg) msg in 
-      let buf = Luv.Buffer.from_bytes buf in
+      let (_, buf) = Binable.to_buffer (module System.Msg) msg in
       B.send addr_port buf
 
   let register = Registry.register ~local:true arb.registry
@@ -118,20 +117,17 @@ module Make(B: Backend.B): ARBITER = struct
         names=names;
         ack=ack
       }) in
-    let (_, buf) = Binable.to_bytes (module System.Msg) ready in
-    let buf = Luv.Buffer.from_bytes buf in
+    let (_, buf) = Binable.to_buffer (module System.Msg) ready in
     B.send dest buf
 
   let init () =
     B.start
       ~on_tcp:(fun _conn buf ->
-          let buf = Luv.Buffer.to_bytes buf in (*TODO: Get rid of this conversion *)
-          let msg = Binable.from_bytes (module System.Msg) buf |> Result.get_ok in
+          let msg = Binable.from_buffer (module System.Msg) buf |> Result.get_ok in
           match msg with
           | Syn source ->
             send_ready source false;
           | ToActor (pid, digest, msg) ->
-            Log.debug (fun m -> m "send locally: %s" pid);
             send_localy pid digest msg;
           | Ready re ->
             List.iter (fun (n, pid) ->
@@ -145,9 +141,8 @@ module Make(B: Backend.B): ARBITER = struct
           let ip, port = dest in
           Log.debug (fun m -> m "discovered: %s:%d" ip port);
           let msg = System.Msg.Syn (B.server_ip, B.server_port) in
-          let _, b = Binable.to_bytes (module System.Msg) msg in
-          let buffer = Luv.Buffer.from_bytes b in
-          B.send dest buffer
+          let _, buf = Binable.to_buffer (module System.Msg) msg in
+          B.send dest buf
         )
 
 

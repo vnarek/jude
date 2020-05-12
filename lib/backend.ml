@@ -64,8 +64,7 @@ module Discovery = struct
       (function
         | (_ , None, _) -> ()
         | (buffer, Some client, _flags) ->
-          let buffer = Luv.Buffer.to_bytes buffer in
-          match Binable.from_bytes (module Discovery_msg) buffer with
+          match Binable.from_buffer (module Discovery_msg) buffer with
           | Error e -> Log.warn (fun m -> m "discovery msg err: %s" e)
           | Ok msg ->
             if msg <> t.discovery then begin
@@ -74,10 +73,9 @@ module Discovery = struct
       );
     let timer = Luv.Timer.init () |> Result.get_ok in
     Luv.Timer.start timer ~repeat:3000 0 (fun _ ->
-        let _, data = Binable.to_bytes (module Discovery_msg) t.discovery in
-        let buf = [Luv.Buffer.from_bytes data] in
+        let _, buf = Binable.to_buffer (module Discovery_msg) t.discovery in
         let send_addr = Luv.Sockaddr.ipv4 "224.100.0.1" 6999 |> Result.get_ok in
-        Luv.UDP.send t.socket buf send_addr @@ function
+        Luv.UDP.send t.socket [buf] send_addr @@ function
         |Error e -> report_err "error sending discovery: %s" e
         | _ -> ()
       ) |> Result.get_ok
@@ -186,7 +184,6 @@ module Make(C: CONFIG): B = struct
     Discovery.start state.discovery 
       (fun msg _sock ->
          let destination = (msg.ip, msg.port) in
-         Log.debug (fun m -> m "number of clients: %d" @@ Hashtbl.length state.clients);
          match Hashtbl.find_opt state.clients destination with
          | None -> 
            let client = connect destination in
