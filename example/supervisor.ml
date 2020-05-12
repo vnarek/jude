@@ -33,7 +33,6 @@ let rec ping num ctx =
 
 
 let pong () ctx =
-  (*TODO: both cant request get_name at the same time better error than exception is desired*)
   let ping_pid = Arbiter.get_name "ping" |> Option.get in 
   let self_pid = Actor.selfPid ctx in
   Arbiter.send ping_pid (module PingMsg) @@ Ping self_pid;

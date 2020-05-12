@@ -43,19 +43,19 @@ module Discovery = struct
     socket: Luv.UDP.t;
   }
 
-  let create ip port = 
-    let socket = Luv.UDP.init () |> Result.get_ok in
-    let recv_address = Luv.Sockaddr.ipv4 "0.0.0.0" 6999 |> Result.get_ok in
-    Luv.UDP.bind ~reuseaddr:true socket recv_address |> Result.get_ok;
-    let _ = 
-      Luv.UDP.set_membership socket ~group:"224.100.0.1" ~interface:"0.0.0.0" `JOIN_GROUP |> Result.get_ok in
-    {
-      discovery={
-        ip;
-        port
-      };
-      socket
-    }
+  let create ip port =
+    let open Result.Syntax in
+    (Luv.UDP.init () >>= fun socket ->
+     Luv.Sockaddr.ipv4 "0.0.0.0" 6999 >>= fun recv_address ->
+     Luv.UDP.bind ~reuseaddr:true socket recv_address >>= fun _ ->
+     Luv.UDP.set_membership socket ~group:"224.100.0.1" ~interface:"0.0.0.0" `JOIN_GROUP >>= fun _ ->
+     Ok {
+       discovery={
+         ip;
+         port
+       };
+       socket
+     }) |> Result.unwrap "discovery create"
 
   let start t fn =
     Luv.UDP.recv_start t.socket @@ 
@@ -71,14 +71,14 @@ module Discovery = struct
               fn msg client
             end
       );
-    let timer = Luv.Timer.init () |> Result.get_ok in
+    let timer = Luv.Timer.init () |> Result.unwrap "discovery start" in
+    let send_addr = Luv.Sockaddr.ipv4 "224.100.0.1" 6999 |> Result.unwrap "udp sockaddr" in
     Luv.Timer.start timer ~repeat:3000 0 (fun _ ->
-        let _, buf = Binable.to_buffer (module Discovery_msg) t.discovery in
-        let send_addr = Luv.Sockaddr.ipv4 "224.100.0.1" 6999 |> Result.get_ok in
+        let buf = Binable.to_buffer (module Discovery_msg) t.discovery in
         Luv.UDP.send t.socket [buf] send_addr @@ function
         |Error e -> report_err "error sending discovery: %s" e
         | _ -> ()
-      ) |> Result.get_ok
+      ) |> Result.unwrap "timer start"
 end
 
 
@@ -92,10 +92,11 @@ module Make(C: CONFIG): B = struct
     send_ch: ((string * int) * Luv.Buffer.t) Channel.t
   }
 
-  let server_address = Luv.Sockaddr.ipv4 C.server_ip C.server_port |> Result.get_ok
+  let server_address = Luv.Sockaddr.ipv4 C.server_ip C.server_port 
+                       |> Result.unwrap "backend server address"
 
   let create_arbiter () = 
-    let server = Luv.TCP.init () |> Result.get_ok in
+    let server = Luv.TCP.init () |> Result.unwrap "arbiter create" in
     let _ = Luv.TCP.bind server server_address in
     server
 
@@ -123,8 +124,8 @@ module Make(C: CONFIG): B = struct
       )
 
   let connect (address, port) =
-    let client = Luv.TCP.init () |> Result.get_ok in
-    let sock_addr = Luv.Sockaddr.ipv4 address port |> Result.get_ok in 
+    let client = Luv.TCP.init () |> Result.unwrap "connect tcp init" in
+    let sock_addr = Luv.Sockaddr.ipv4 address port |> Result.unwrap "connect sock addr" in 
     Luv.TCP.connect client sock_addr @@ handle_res ~msg:"connect error: %s" (fun _ -> 
         Luv.Stream.read_start client @@ handle_res ~msg:"read error: %s"
           ~on_error:(fun _ ->
@@ -153,7 +154,7 @@ module Make(C: CONFIG): B = struct
                 | Ok () -> ()
               );
           );
-      ) |> Result.get_ok
+      ) |> Result.unwrap "async send to client"
 
   let send destination buf = 
     Channel.send state.send_ch (destination, buf);
@@ -163,7 +164,7 @@ module Make(C: CONFIG): B = struct
   let start ~on_disc ~on_tcp = 
     Luv.Stream.listen state.server @@ handle_res ~msg:"listen error: %s" 
       (fun _ ->
-         let client = Luv.TCP.init () |> Result.get_ok in
+         let client = Luv.TCP.init () |> Result.unwrap "backend start tcp init" in
          Luv.Stream.accept ~server:state.server ~client
          |> handle_res 
            ~msg:"accept error: %s"

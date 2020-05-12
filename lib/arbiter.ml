@@ -28,7 +28,7 @@ end
 
 module Make(B: Backend.B): ARBITER = struct
   let arb =
-    let mux = Luv.Rwlock.init () |> Result.get_ok in
+    let mux = Luv.Rwlock.init () |> Result.unwrap "rwlock error" in
     {
       actors = Hashtbl.create 100;
       mux = mux;
@@ -38,7 +38,7 @@ module Make(B: Backend.B): ARBITER = struct
 
   let async_stop = Luv.Async.init 
       (fun _ ->  Luv.Loop.stop (Luv.Loop.default ()))
-                   |> Result.get_ok
+                   |> Result.unwrap "loop stop error"
 
   let save_instance instance name =
     Luv.Rwlock.wrlock arb.mux;
@@ -94,7 +94,7 @@ module Make(B: Backend.B): ARBITER = struct
       send_localy id digest msg_b
     |Remote (id, addr_port) ->
       let msg =  System.Msg.ToActor (id, digest, msg_b) in
-      let (_, buf) = Binable.to_buffer (module System.Msg) msg in
+      let buf = Binable.to_buffer (module System.Msg) msg in
       B.send addr_port buf
 
   let register = Registry.register ~local:true arb.registry
@@ -117,31 +117,32 @@ module Make(B: Backend.B): ARBITER = struct
         names=names;
         ack=ack
       }) in
-    let (_, buf) = Binable.to_buffer (module System.Msg) ready in
+    let buf = Binable.to_buffer (module System.Msg) ready in
     B.send dest buf
 
   let init () =
     B.start
       ~on_tcp:(fun _conn buf ->
-          let msg = Binable.from_buffer (module System.Msg) buf |> Result.get_ok in
-          match msg with
-          | Syn source ->
-            send_ready source false;
-          | ToActor (pid, digest, msg) ->
-            send_localy pid digest msg;
-          | Ready re ->
-            List.iter (fun (n, pid) ->
-                Log.debug (fun m -> m "registering name: %s" n);
-                Registry.register ~local:false arb.registry n pid;
-              ) re.names;
-            if not re.ack then
-              send_ready re.source true;
+          Binable.from_buffer (module System.Msg) buf
+          |> Result.iter (function
+              | System.Msg.Syn source ->
+                send_ready source false;
+              | ToActor (pid, digest, msg) ->
+                send_localy pid digest msg;
+              | Ready re ->
+                List.iter (fun (n, pid) ->
+                    Log.debug (fun m -> m "registering name: %s" n);
+                    Registry.register ~local:false arb.registry n pid;
+                  ) re.names;
+                if not re.ack then
+                  send_ready re.source true;
+            )
         )
       ~on_disc:(fun dest ->
           let ip, port = dest in
           Log.debug (fun m -> m "discovered: %s:%d" ip port);
           let msg = System.Msg.Syn (B.server_ip, B.server_port) in
-          let _, buf = Binable.to_buffer (module System.Msg) msg in
+          let buf = Binable.to_buffer (module System.Msg) msg in
           B.send dest buf
         )
 
@@ -223,7 +224,7 @@ module Make(B: Backend.B): ARBITER = struct
     | None -> ()
 
   let run () = 
-    let t = Luv.Thread.create (actor_loop) |> Result.get_ok (* Join this later *) in
+    let t = Luv.Thread.create (actor_loop) |> Result.unwrap "thread create" in
     (Luv.Loop.run ()) |> ignore;
     Luv.Thread.join t |> ignore
 end

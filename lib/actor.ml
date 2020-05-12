@@ -15,7 +15,7 @@ type t = {
 type beh = t -> Matcher.t
 
 let create pid =
-  let mailbox = Mailbox.create () |> Result.get_ok in
+  let mailbox = Mailbox.create () |> Result.unwrap "mailbox create" in
   {
     selfPid = pid;
     cont = ref Matcher.block;
@@ -34,8 +34,8 @@ let receive t digest buf = Mailbox.push t.mailbox (digest, buf)
 let step t =
   Mailbox.filter t.mailbox (fun (digest, buf) ->
       let r = !(t.cont) digest buf in 
-      Result.iter_error (fun r -> Log.debug (fun m -> m "j %s" r)) r;
-      Result.is_error r (* Could starve the connection *)
+      Result.iter_error (fun r -> Log.debug (fun m -> m "%s" r)) r;
+      Result.is_error r
     )
 
 let selfPid {selfPid; _} = selfPid

@@ -12,7 +12,7 @@ let to_buffer (type a) ((module Bin): a m) msg =
   let size = Bin.bin_size_t msg in
   let buf = Bin_prot.Common.create_buf size in
   let _ = Bin.bin_write_t buf ~pos:0 msg in
-  (Bin_prot.Shape.eval_to_digest_string Bin.bin_shape_t, buf)
+  buf
 
 let to_digest (type a) ((module Bin): a m) =
   Bin_prot.Shape.eval_to_digest_string Bin.bin_shape_t

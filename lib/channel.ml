@@ -5,7 +5,7 @@ module SyncQueue = struct
   }
 
   let create() = 
-    let mux = Luv.Mutex.init() |> Result.get_ok in
+    let mux = Luv.Mutex.init() |> Result.unwrap "mutex init" in
     {
       q = Queue.create();
       mux = mux;
@@ -31,8 +31,8 @@ type 'a t = {
 }
 
 let create () = 
-  let mux = Luv.Mutex.init () |> Result.get_ok in
-  let cond = Luv.Condition.init () |> Result.get_ok in
+  let mux = Luv.Mutex.init () |> Result.unwrap "mutex init" in
+  let cond = Luv.Condition.init () |> Result.unwrap "mutex init" in
   {
     queue = SyncQueue.create ();
     mux = mux;
@@ -44,7 +44,7 @@ let send t a =
   SyncQueue.send t.queue a;
   Luv.Condition.signal t.cond
 
-let rec recv t = (*TODO: Not default option *)
+let rec recv t =
   Luv.Mutex.lock t.mux;
   match SyncQueue.pop t.queue with
   | Some x ->
