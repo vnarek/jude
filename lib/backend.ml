@@ -1,5 +1,3 @@
-open Log
-
 module type CONFIG = sig
   val server_ip: string
   val server_port: int
@@ -86,7 +84,7 @@ module Discovery = struct
 end
 
 
-module Make_log(C: CONFIG)(Log: Logs.LOG): B = struct
+module Make(C: CONFIG): B = struct
   include C
 
   type t = {
@@ -197,5 +195,3 @@ module Make_log(C: CONFIG)(Log: Logs.LOG): B = struct
          | _ -> ()
       )
 end
-
-module Make(C: CONFIG) = Make_log(C)(Log)

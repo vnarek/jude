@@ -34,7 +34,7 @@ let receive t digest buf = Mailbox.push t.mailbox (digest, buf)
 let step t =
   Mailbox.filter t.mailbox (fun (digest, buf) ->
       let r = !(t.cont) digest buf in 
-      Result.iter_error (fun e -> Log.Log.debug (fun m -> m "step error: %s" e)) r;
+      Result.iter_error (fun e -> Log.debug (fun m -> m "step error: %s" e)) r;
       Result.is_ok r
     )
 

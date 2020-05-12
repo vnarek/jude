@@ -20,7 +20,7 @@ let rec react matchers digest msg =
   | m :: rest ->
     match m digest msg with
     | Error r ->
-      Log.Log.debug (fun m -> m "mismatch: %s" r);
+      Log.debug (fun m -> m "mismatch: %s" r);
       react rest digest msg
     | _ -> Ok()
 

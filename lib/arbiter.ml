@@ -26,7 +26,7 @@ module type ARBITER = sig
   val become: Actor.t -> Actor.beh -> unit
 end
 
-module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
+module Make(B: Backend.B): ARBITER = struct
   let arb =
     let mux = Luv.Rwlock.init () |> Result.get_ok in
     {
@@ -232,5 +232,3 @@ module Make_log(B: Backend.B)(Log: Logs.LOG): ARBITER = struct
     (Luv.Loop.run ()) |> ignore;
     Luv.Thread.join t |> ignore
 end
-
-module Make(B: Backend.B) = Make_log(B)(Log.Log)

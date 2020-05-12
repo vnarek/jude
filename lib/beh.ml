@@ -45,7 +45,7 @@ module Supervisor(A: Arbiter.ARBITER) = struct
     let old_pid = match msg with
       | `Normal pid -> pid
       | `Error (msg, pid) -> 
-        Log.Log.debug (fun m -> m "pid %s down reason %s" (Pid.to_string pid) msg);
+        Log.debug (fun m -> m "pid %s down reason %s" (Pid.to_string pid) msg);
         pid 
     in
     match t.policy with
