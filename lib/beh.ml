@@ -81,7 +81,7 @@ module Resolver(A: Arbiter.ARBITER) = struct
          Matcher.(
            react [
              case (module System.Resolution_msg) (function
-                 | Success (_, pid) ->
+                 | System.Resolution_msg.Success (_, pid) ->
                    ignore (A.spawn (fn pid) : Pid.t);
                    A.exit self_pid @@ `Normal self_pid;
                )

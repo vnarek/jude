@@ -38,6 +38,8 @@ module Discovery_msg = struct
 end
 
 module Discovery = struct
+  open Discovery_msg
+
   type t = {
     discovery: Discovery_msg.t;
     socket: Luv.UDP.t;
@@ -51,8 +53,8 @@ module Discovery = struct
      Luv.UDP.set_membership socket ~group:"224.100.0.1" ~interface:"0.0.0.0" `JOIN_GROUP >>= fun _ ->
      Ok {
        discovery={
-         ip;
-         port
+         ip=ip;
+         port=port;
        };
        socket
      }) |> Result.unwrap "discovery create"
@@ -77,7 +79,7 @@ module Discovery = struct
         let buf = Binable.to_buffer (module Discovery_msg) t.discovery in
         Luv.UDP.send t.socket [buf] send_addr @@ function
         |Error e -> report_err "error sending discovery: %s" e
-        | _ -> ()
+        | Ok () -> ()
       ) |> Result.unwrap "timer start"
 end
 
@@ -184,7 +186,7 @@ module Make(C: CONFIG): B = struct
       );
     Discovery.start state.discovery 
       (fun msg _sock ->
-         let destination = (msg.ip, msg.port) in
+         let destination = Discovery_msg.(msg.ip, msg.port) in
          match Hashtbl.find_opt state.clients destination with
          | None -> 
            let client = connect destination in

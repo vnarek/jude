@@ -16,4 +16,4 @@ module type ARBITER = sig
   val become: Actor.t -> Actor.beh -> unit
 end
 
-module Make : functor (B : Backend.B) -> ARBITER
+module Make : functor (_:Backend.B) -> ARBITER

@@ -1,11 +1,3 @@
-
-module Msg = struct
-  open Bin_prot.Std
-
-  type t = Win of string [@@deriving bin_io]
-end
-
-
 type t = string -> bytes -> (unit, string) result
 
 let case (type a) (m: a Binable.m) fn digest msg =
@@ -22,7 +14,7 @@ let rec react matchers digest msg =
     | Error r ->
       Log.debug (fun m -> m "mismatch: %s" r);
       react rest digest msg
-    | _ -> Ok()
+    | Ok() -> Ok()
 
 let sink _ _ = Ok()
 

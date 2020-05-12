@@ -105,9 +105,10 @@ module Make(B: Backend.B): ARBITER = struct
 
   let get_name = Registry.get_name arb.registry
 
-  let resolve_name name customer = 
+  let resolve_name name customer =
+    let module Res = System.Resolution_msg in 
     Registry.on_name arb.registry name (fun pid ->
-        send customer (module System.Resolution_msg) @@ Success (name, pid)
+        send customer (module Res) @@ Res.Success (name, pid)
       )
 
   let send_ready dest ack = 
@@ -123,13 +124,14 @@ module Make(B: Backend.B): ARBITER = struct
   let init () =
     B.start
       ~on_tcp:(fun _conn buf ->
-          Binable.from_buffer (module System.Msg) buf
+          let module Msg = System.Msg in
+          Binable.from_buffer (module Msg) buf
           |> Result.iter (function
-              | System.Msg.Syn source ->
+              | Msg.Syn source ->
                 send_ready source false;
-              | ToActor (pid, digest, msg) ->
+              | Msg.ToActor (pid, digest, msg) ->
                 send_localy pid digest msg;
-              | Ready re ->
+              | Msg.Ready re ->
                 List.iter (fun (n, pid) ->
                     Log.debug (fun m -> m "registering name: %s" n);
                     Registry.register ~local:false arb.registry n pid;

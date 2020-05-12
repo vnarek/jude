@@ -14,4 +14,4 @@ module type B = sig
   val send: (string * int) -> Luv.Buffer.t -> unit
 end
 
-module Make : functor (C : CONFIG) -> B
+module Make : functor (_:CONFIG) -> B
