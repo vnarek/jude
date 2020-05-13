@@ -38,26 +38,31 @@ let handle_res ?(on_error = ignore) ?(msg = default_err) fn res =
       on_error e
   | Ok k -> fn k
 
-module Discovery_msg = struct
-  open Bin_prot.Std
-
-  type t = { ip : string; port : int } [@@deriving bin_io]
-end
-
 module Discovery = struct
-  open Discovery_msg
+  module Msg = struct
+    open Bin_prot.Std
 
-  type t = { discovery : Discovery_msg.t; socket : Luv.UDP.t }
+    type t = { ip : string; port : int } [@@deriving bin_io]
+  end
+
+  module Config = struct
+    let port = 6999
+
+    let address = "224.100.0.1"
+  end
+
+  type t = { discovery : Msg.t; socket : Luv.UDP.t }
 
   let create ip port =
     let open Result.Syntax in
+    let inet_addr = Unix.string_of_inet_addr Unix.inet_addr_any in
     Luv.UDP.init ()
     >>= (fun socket ->
-          Luv.Sockaddr.ipv4 "0.0.0.0" 6999 >>= fun recv_address ->
+          Luv.Sockaddr.ipv4 inet_addr Config.port >>= fun recv_address ->
           Luv.UDP.bind ~reuseaddr:true socket recv_address >>= fun _ ->
-          Luv.UDP.set_membership socket ~group:"224.100.0.1"
-            ~interface:"0.0.0.0" `JOIN_GROUP
-          >>= fun _ -> Ok { discovery = { ip; port }; socket })
+          Luv.UDP.set_membership socket ~group:Config.address
+            ~interface:inet_addr `JOIN_GROUP
+          >>= fun _ -> Ok { discovery = Msg.{ ip; port }; socket })
     |> Result.unwrap "discovery create"
 
   let start t fn =
@@ -65,7 +70,7 @@ module Discovery = struct
     @@ handle_res ~msg:"read error: %s" (function
          | _, None, _ -> ()
          | buffer, Some client, _flags -> (
-             match Binable.from_buffer (module Discovery_msg) buffer with
+             match Binable.from_buffer (module Msg) buffer with
              | Error e -> Log.warn (fun m -> m "discovery msg err: %s" e)
              | Ok msg -> if msg <> t.discovery then fn msg client ));
     let timer = Luv.Timer.init () |> Result.unwrap "discovery start" in
@@ -73,7 +78,7 @@ module Discovery = struct
       Luv.Sockaddr.ipv4 "224.100.0.1" 6999 |> Result.unwrap "udp sockaddr"
     in
     Luv.Timer.start timer ~repeat:3000 0 (fun _ ->
-        let buf = Binable.to_buffer (module Discovery_msg) t.discovery in
+        let buf = Binable.to_buffer (module Msg) t.discovery in
         Luv.UDP.send t.socket [ buf ] send_addr @@ function
         | Error e -> report_err "error sending discovery: %s" e
         | Ok () -> ())
@@ -174,7 +179,7 @@ module Make (C : CONFIG) : B = struct
                         Luv.Handle.close client ignore
                     | Ok buffer -> on_tcp client buffer)));
     Discovery.start state.discovery (fun msg _sock ->
-        let destination = Discovery_msg.(msg.ip, msg.port) in
+        let destination = Discovery.Msg.(msg.ip, msg.port) in
         match Hashtbl.find_opt state.clients destination with
         | None ->
             let client = connect destination in
