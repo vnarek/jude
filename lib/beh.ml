@@ -44,8 +44,7 @@ module Supervisor (A : Arbiter.ARBITER) = struct
       match msg with
       | `Normal pid -> pid
       | `Error (msg, pid) ->
-          Log.debug (fun m ->
-              m "pid %s down reason %s" (Pid.to_string pid) msg);
+          Log.debug (fun m -> m "pid %s down reason %s" (Pid.to_string pid) msg);
           pid
     in
     match t.policy with
@@ -62,8 +61,7 @@ module Supervisor (A : Arbiter.ARBITER) = struct
     let self_pid = Actor.self_pid ctx in
     init_all t self_pid;
 
-    Matcher.(
-      react [ case (module System.Msg_exit) @@ handle_exit t self_pid ])
+    Matcher.(react [ case (module System.Msg_exit) @@ handle_exit t self_pid ])
 end
 
 module Resolver (A : Arbiter.ARBITER) = struct

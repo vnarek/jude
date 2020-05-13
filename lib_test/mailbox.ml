@@ -17,5 +17,4 @@ let test_all_in_all_out () =
       Alcotest.(check (module Msg)) "should equal" x res)
     xs
 
-let tests =
-  [ ("mailbox", [ ("all in all out", `Quick, test_all_in_all_out) ]) ]
+let tests = [ ("mailbox", [ ("all in all out", `Quick, test_all_in_all_out) ]) ]

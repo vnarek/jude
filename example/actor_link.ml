@@ -37,8 +37,7 @@ let pong () ctx =
       (ping ~onfailure:(fun pid -> Arbiter.exit pid (`Normal self_pid)) 2)
   in
   let pid' =
-    Arbiter.spawn_link self_pid
-      (ping ~onfailure:(fun _ -> 1 / 0 |> ignore) 2)
+    Arbiter.spawn_link self_pid (ping ~onfailure:(fun _ -> 1 / 0 |> ignore) 2)
   in
   Arbiter.send pid (module PingMsg) (PingMsg.Ping self_pid);
   Arbiter.send pid' (module PingMsg) (PingMsg.Ping self_pid);

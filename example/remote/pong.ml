@@ -17,8 +17,7 @@ let pong () ctx =
        | Ping (senderPid, num) ->
            Logs.app (fun m -> m "got PONG! ack number:%d" num);
            Luv.Time.sleep 1000;
-           Arbiter.send senderPid (module PongMsg)
-           @@ Pong (self_pid, 100 + num));
+           Arbiter.send senderPid (module PongMsg) @@ Pong (self_pid, 100 + num));
     ]
 
 let () =

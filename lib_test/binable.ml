@@ -19,9 +19,7 @@ let test_msg_identity_property () =
            Alcotest.(check (module Msg)) "should equal" msg msg'))
 
 let test_digest () =
-  let digest, bytes =
-    Jude.Binable.to_bytes (module Msg) (Msg.Adioso "ahoj")
-  in
+  let digest, bytes = Jude.Binable.to_bytes (module Msg) (Msg.Adioso "ahoj") in
   Jude.Binable.from_bytes (module Msg2) ~digest bytes
   |> Result.iter (fun _ -> Alcotest.fail "error")
 

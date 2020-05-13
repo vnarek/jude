@@ -42,14 +42,14 @@ let process_on_name_callbacks t name pid =
   Hashtbl.remove t.on_name name
 
 let register ~local t name pid =
-  Hashtbl.replace t.names name
-    {
-      pid;
-      (*TODO: Check and report if already registered *)
-      is_local = local;
-    };
+  Hashtbl.replace t.names name { pid; is_local = local };
+  (*TODO: Check and report if already registered *)
   let pid_names = Hashtbl.find_opt t.names_rev pid in
-  let ht = match pid_names with Some h -> h | None -> Hashtbl.create 100 in
+  let ht =
+    match pid_names with
+    | Some h -> h
+    | None -> Hashtbl.create 100
+  in
   Hashtbl.add ht name ();
   process_on_name_callbacks t name pid
 
