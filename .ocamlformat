@@ -1,0 +1,6 @@
+profile = conventional
+break-cases = fit
+margin = 77
+parse-docstrings = true
+wrap-comments = true
+version=0.14.1
