@@ -1,12 +1,21 @@
 type 'a m = (module Bin_prot.Binable.S with type t = 'a)
 
+let hash_length = 8
+
+let eval_to_digest_string shape =
+  let digest =
+    Bin_prot.Shape.eval_to_digest shape
+    |> Bin_prot.Shape.Digest.to_md5 |> Md5_lib.to_binary
+  in
+  String.sub digest 0 hash_length
+
 let to_bytes (type a) ((module Bin) : a m) msg =
   let size = Bin.bin_size_t msg in
   let buf = Bin_prot.Common.create_buf size in
   let len = Bin.bin_write_t buf ~pos:0 msg in
   let bytes = Bytes.create len in
   Bin_prot.Common.blit_buf_bytes buf bytes ~len;
-  (Bin_prot.Shape.eval_to_digest_string Bin.bin_shape_t, bytes)
+  (eval_to_digest_string Bin.bin_shape_t, bytes)
 
 let to_buffer (type a) ((module Bin) : a m) msg =
   let size = Bin.bin_size_t msg in
@@ -18,7 +27,7 @@ let to_digest (type a) ((module Bin) : a m) =
   Bin_prot.Shape.eval_to_digest_string Bin.bin_shape_t
 
 let check_digest shape digest =
-  let digest' = Bin_prot.Shape.eval_to_digest_string shape in
+  let digest' = eval_to_digest_string shape in
   if digest = digest' then Ok () else Error "digest failed"
 
 let from_bytes (type a) ((module Bin) : a m) ?digest bytes =
