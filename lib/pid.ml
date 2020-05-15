@@ -14,4 +14,4 @@ let address_port { address; port; _ } = (address, port)
 
 let gen () = Uuidm.v `V4 |> Uuidm.to_bytes
 
-let create ?(id = gen ()) address port = { address; port; id }
+let create ?(id = gen ()) (address, port) = { address; port; id }

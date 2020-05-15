@@ -7,18 +7,12 @@ end
 module DefaultConfig : CONFIG
 
 module type B = sig
-  val server_ip : string
+  type conn = string * int
 
-  val server_port : int
-
-  val server_address : Luv.Sockaddr.t
+  val server_conn : conn
 
   val start :
-    on_disc:(string * int -> unit) ->
-    on_tcp:(Luv.TCP.t -> Luv.Buffer.t -> unit) ->
-    unit
-
-  val connect : string * int -> Luv.TCP.t
+    on_disc:(string * int -> unit) -> on_conn:(Luv.Buffer.t -> unit) -> unit
 
   val send : string * int -> Luv.Buffer.t -> unit
 end

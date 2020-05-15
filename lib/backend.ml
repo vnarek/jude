@@ -11,18 +11,12 @@ module DefaultConfig : CONFIG = struct
 end
 
 module type B = sig
-  val server_ip : string
+  type conn = string * int
 
-  val server_port : int
-
-  val server_address : Luv.Sockaddr.t
+  val server_conn : conn
 
   val start :
-    on_disc:(string * int -> unit) ->
-    on_tcp:(Luv.TCP.t -> Luv.Buffer.t -> unit) ->
-    unit
-
-  val connect : string * int -> Luv.TCP.t
+    on_disc:(string * int -> unit) -> on_conn:(Luv.Buffer.t -> unit) -> unit
 
   val send : string * int -> Luv.Buffer.t -> unit
 end
@@ -95,6 +89,10 @@ module Make (C : CONFIG) : B = struct
     send_ch : ((string * int) * Luv.Buffer.t) Channel.t;
   }
 
+  type conn = string * int
+
+  let server_conn = (C.server_ip, C.server_port)
+
   let server_address =
     Luv.Sockaddr.ipv4 C.server_ip C.server_port
     |> Result.unwrap "backend server address"
@@ -160,7 +158,7 @@ module Make (C : CONFIG) : B = struct
     Luv.Async.send async_send_to_client
     |> handle_res ~msg:"send error: %s" ignore
 
-  let start ~on_disc ~on_tcp =
+  let start ~on_disc ~on_conn =
     Luv.Stream.listen state.server
     @@ handle_res ~msg:"listen error: %s" (fun _ ->
            let client =
@@ -177,7 +175,7 @@ module Make (C : CONFIG) : B = struct
                     | Error e ->
                         report_err "read error: %s" e;
                         Luv.Handle.close client ignore
-                    | Ok buffer -> on_tcp client buffer)));
+                    | Ok buffer -> on_conn buffer)));
     Discovery.start state.discovery (fun msg _sock ->
         let destination = Discovery.Msg.(msg.ip, msg.port) in
         match Hashtbl.find_opt state.clients destination with

@@ -91,7 +91,8 @@ module Make (B : Backend.B) : ARBITER = struct
   type location = Local of string | Remote of (string * (string * int))
 
   let check_location pid =
-    let addr_b = (B.server_ip, B.server_port) in
+    let addr_b = B.server_conn in
+    (* create inside backend *)
     let addr_pid = Pid.address_port pid in
     let id = Pid.id pid in
     if addr_b = addr_pid then Local (Pid.id pid) else Remote (id, addr_pid)
@@ -120,15 +121,13 @@ module Make (B : Backend.B) : ARBITER = struct
 
   let send_ready dest ack =
     let names = Registry.get_public_names arb.registry in
-    let ready =
-      System.Msg.Ready { source = (B.server_ip, B.server_port); names; ack }
-    in
+    let ready = System.Msg.Ready { source = B.server_conn; names; ack } in
     let buf = Binable.to_buffer (module System.Msg) ready in
     B.send dest buf
 
   let init () =
     B.start
-      ~on_tcp:(fun _conn buf ->
+      ~on_conn:(fun buf ->
         let module Msg = System.Msg in
         Binable.from_buffer (module Msg) buf
         |> Result.iter (function
@@ -144,12 +143,12 @@ module Make (B : Backend.B) : ARBITER = struct
       ~on_disc:(fun dest ->
         let ip, port = dest in
         Log.debug (fun m -> m "discovered: %s:%d" ip port);
-        let msg = System.Msg.Syn (B.server_ip, B.server_port) in
+        let msg = System.Msg.Syn B.server_conn in
         let buf = Binable.to_buffer (module System.Msg) msg in
         B.send dest buf)
 
   let spawn actor =
-    let pid = Pid.create B.server_ip B.server_port in
+    let pid = Pid.create B.server_conn in
     let t = Actor.create pid in
     let id = Pid.id pid in
     save_instance t id;
