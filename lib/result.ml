@@ -11,4 +11,6 @@ module Syntax = struct
   let ( let+ ) r f = map f r
 
   let ( >>= ) = bind
+
+  let ( let* ) = bind
 end

@@ -11,19 +11,18 @@ module DefaultConfig : CONFIG = struct
 end
 
 module type B = sig
-  type conn = string * int
+  type conn = Conn.t
 
   val server_conn : conn
 
-  val start :
-    on_disc:(string * int -> unit) -> on_conn:(Luv.Buffer.t -> unit) -> unit
+  val start : on_disc:(conn -> unit) -> on_conn:(Luv.Buffer.t -> unit) -> unit
 
-  val send : string * int -> Luv.Buffer.t -> unit
+  val send : conn -> Luv.Buffer.t -> unit
 end
 
-let report_err str e = Logs.err @@ fun m -> m str (Luv.Error.strerror e)
-
 let default_err = format_of_string "error: %s"
+
+let report_err str e = Logs.err @@ fun m -> m str (Luv.Error.strerror e)
 
 let handle_res ?(on_error = ignore) ?(msg = default_err) fn res =
   match res with
@@ -89,7 +88,7 @@ module Make (C : CONFIG) : B = struct
     send_ch : ((string * int) * Luv.Buffer.t) Channel.t;
   }
 
-  type conn = string * int
+  type conn = Conn.t
 
   let server_conn = (C.server_ip, C.server_port)
 
@@ -99,7 +98,7 @@ module Make (C : CONFIG) : B = struct
 
   let create_arbiter () =
     let server = Luv.TCP.init () |> Result.unwrap "arbiter create" in
-    let _ = Luv.TCP.bind server server_address in
+    let _ = Luv.TCP.bind server @@ server_address in
     server
 
   let state =
@@ -110,47 +109,38 @@ module Make (C : CONFIG) : B = struct
       send_ch = Channel.create ();
     }
 
-  let _add_client client =
-    Luv.TCP.getpeername client
-    |> handle_res ~msg:"add_client: %s" (fun sock ->
-           Option.bind (Luv.Sockaddr.to_string sock) (fun a ->
-               Option.map (fun p -> (a, p)) (Luv.Sockaddr.port sock))
-           |> Option.iter (fun dest ->
-                  match Hashtbl.find_opt state.clients dest with
-                  | None -> Hashtbl.replace state.clients dest client
-                  | _ -> ()))
-
   let connect (address, port) =
-    let client = Luv.TCP.init () |> Result.unwrap "connect tcp init" in
-    let sock_addr =
-      Luv.Sockaddr.ipv4 address port |> Result.unwrap "connect sock addr"
+    let open Result.Syntax in
+    let* client = Luv.TCP.init () in
+    let* sock_addr = Luv.Sockaddr.ipv4 address port in
+    let _ =
+      Luv.TCP.connect client sock_addr
+      @@ handle_res ~msg:"connect error: %s" (fun _ ->
+             Luv.Stream.read_start client
+             @@ handle_res ~msg:"read error: %s"
+                  ~on_error:(fun _ ->
+                    Log.debug (fun m -> m "read error");
+                    Hashtbl.remove state.clients (address, port);
+                    Luv.Handle.close client ignore)
+                  ignore)
     in
-    Luv.TCP.connect client sock_addr
-    @@ handle_res ~msg:"connect error: %s" (fun _ ->
-           Luv.Stream.read_start client
-           @@ handle_res ~msg:"read error: %s"
-                ~on_error:(fun _ ->
-                  Log.debug (fun m -> m "read error");
-                  Hashtbl.remove state.clients (address, port);
-                  Luv.Handle.close client ignore)
-                ignore);
-    client
+    Ok client
 
   let async_send_to_client =
     Luv.Async.init (fun _ ->
         Channel.consume state.send_ch (fun (destination, buf) ->
             let client =
               match Hashtbl.find_opt state.clients destination with
-              | Some client -> client
-              | None ->
-                  let client = connect destination in
-                  Hashtbl.add state.clients destination client;
-                  client
+              | Some client -> Ok client
+              | None -> connect destination
             in
-            Luv.Stream.write client [ buf ] (fun e _ ->
-                match e with
-                | Error e -> report_err "Write error: %s" e
-                | Ok () -> ())))
+            handle_res ~msg:"async send to client: %s"
+              (fun client ->
+                Luv.Stream.write client [ buf ] (fun e _ ->
+                    match e with
+                    | Error e -> report_err "Write error: %s" e
+                    | Ok () -> ()))
+              client))
     |> Result.unwrap "async send to client"
 
   let send destination buf =
@@ -180,8 +170,9 @@ module Make (C : CONFIG) : B = struct
         let destination = Discovery.Msg.(msg.ip, msg.port) in
         match Hashtbl.find_opt state.clients destination with
         | None ->
-            let client = connect destination in
-            Hashtbl.replace state.clients destination client;
-            on_disc destination
+            connect destination
+            |> handle_res ~msg:"discovery client: %s" (fun client ->
+                   Hashtbl.replace state.clients destination client;
+                   on_disc destination)
         | _ -> ())
 end
