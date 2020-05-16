@@ -84,8 +84,8 @@ module Make (C : CONFIG) : B = struct
   type t = {
     server : Luv.TCP.t;
     discovery : Discovery.t;
-    clients : (string * int, Luv.TCP.t) Hashtbl.t;
-    send_ch : ((string * int) * Luv.Buffer.t) Channel.t;
+    clients : (Conn.t, Luv.TCP.t) Hashtbl.t;
+    send_ch : (Conn.t * Luv.Buffer.t) Channel.t;
   }
 
   type conn = Conn.t
