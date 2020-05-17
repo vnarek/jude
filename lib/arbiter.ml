@@ -7,16 +7,12 @@ type 'a arbiter = {
   actor_ch : channel_ops Channel.t;
 }
 
-type actor = Actor.t -> Matcher.t
-
 module type ARBITER = sig
-  val init : unit -> unit
-
   val run : unit -> unit
 
-  val spawn : actor -> Pid.t
+  val spawn : Actor.beh -> Pid.t
 
-  val spawn_link : Pid.t -> actor -> Pid.t
+  val spawn_link : Pid.t -> Actor.beh -> Pid.t
 
   val send : Pid.t -> 'a Binable.m -> 'a -> unit
 
@@ -129,17 +125,17 @@ module Make (B : Backend.B) : ARBITER = struct
     B.start
       ~on_conn:(fun buf ->
         let module Msg = System.Msg in
-        Binable.from_buffer (module Msg) buf
-        |> Result.iter (function
-             | Msg.Syn source -> send_ready source false
-             | Msg.ToActor (pid, digest, msg) -> send_localy pid digest msg
-             | Msg.Ready re ->
-                 List.iter
-                   (fun (n, pid) ->
-                     Log.debug (fun m -> m "registering name: %s" n);
-                     Registry.register ~local:false arb.registry n pid)
-                   re.names;
-                 if not re.ack then send_ready re.source true))
+        let msg = Binable.from_buffer (module Msg) buf in
+        match msg with
+        | Msg.Syn source -> send_ready source false
+        | Msg.ToActor (pid, digest, msg) -> send_localy pid digest msg
+        | Msg.Ready re ->
+            List.iter
+              (fun (n, pid) ->
+                Log.debug (fun m -> m "registering name: %s" n);
+                Registry.register ~local:false arb.registry n pid)
+              re.names;
+            if not re.ack then send_ready re.source true)
       ~on_disc:(fun dest ->
         let ip, port = dest in
         Log.debug (fun m -> m "discovered: %s:%d" ip port);
@@ -207,6 +203,7 @@ module Make (B : Backend.B) : ARBITER = struct
     | None -> ()
 
   let run () =
+    init ();
     let t = Luv.Thread.create actor_loop |> Result.unwrap "thread create" in
     Luv.Loop.run () |> ignore;
     Luv.Thread.join t |> ignore

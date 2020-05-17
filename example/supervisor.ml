@@ -46,7 +46,6 @@ let pong () ctx =
 let () =
   (*Logs.Src.set_level Jude.Log.log_src (Some Debug);*)
   Logs.set_reporter @@ Logs.format_reporter ();
-  Arbiter.init ();
   let t =
     Supervisor.create ~policy:Supervisor.All_for_one
       [ { name = "ping"; beh = ping 2 }; { name = "pong"; beh = pong () } ]

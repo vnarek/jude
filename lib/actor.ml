@@ -7,7 +7,7 @@ type process_flags = [ `Trap_exit ]
 type t = {
   self_pid : Pid.t;
   mailbox : (string * bytes) Mailbox.t;
-  mutable cont : Matcher.t ref;
+  cont : Matcher.t ref;
   links : Pid.t set;
   monitors : Pid.t set;
   flags : process_flags set;

@@ -1,6 +1,4 @@
 module type ARBITER = sig
-  val init : unit -> unit
-
   val run : unit -> unit
 
   val spawn : Actor.beh -> Pid.t

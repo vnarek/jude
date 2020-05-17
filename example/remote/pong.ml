@@ -23,7 +23,6 @@ let pong () ctx =
 let () =
   Logs.Src.set_level Jude.Log.src (Some Debug);
   Logs.set_reporter (Logs.format_reporter ());
-  Arbiter.init ();
   let pid = Arbiter.spawn (pong ()) in
   Arbiter.register "pong" pid;
   Arbiter.run ()

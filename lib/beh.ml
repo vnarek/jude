@@ -50,9 +50,9 @@ module Supervisor (A : Arbiter.ARBITER) = struct
     match t.policy with
     | One_for_one ->
         let recipe = Hashtbl.find t.running old_pid in
-        let newPid = supervise self_pid recipe.name recipe.beh in
+        let new_pid = supervise self_pid recipe.name recipe.beh in
         Hashtbl.remove t.running old_pid;
-        Hashtbl.replace t.running newPid recipe
+        Hashtbl.replace t.running new_pid recipe
     | All_for_one ->
         exit_all t self_pid;
         init_all t self_pid
@@ -67,6 +67,7 @@ end
 module Resolver (A : Arbiter.ARBITER) = struct
   let resolve name fn =
     ( A.spawn (fun ctx ->
+          (* TODO: Maybe multiple name resolving? *)
           let self_pid = Actor.self_pid ctx in
           A.resolve_name name self_pid;
 

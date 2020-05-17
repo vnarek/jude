@@ -23,9 +23,6 @@ let to_buffer (type a) ((module Bin) : a m) msg =
   let _ = Bin.bin_write_t buf ~pos:0 msg in
   buf
 
-let to_digest (type a) ((module Bin) : a m) =
-  Bin_prot.Shape.eval_to_digest_string Bin.bin_shape_t
-
 let check_digest shape digest =
   let digest' = eval_to_digest_string shape in
   if digest = digest' then Ok () else Error "digest failed"
@@ -38,6 +35,5 @@ let from_bytes (type a) ((module Bin) : a m) ?digest bytes =
          Bin_prot.Common.blit_bytes_buf bytes buf ~len;
          Bin.bin_read_t buf ~pos_ref:(ref 0))
 
-let from_buffer (type a) ((module Bin) : a m) ?digest arr =
-  Option.fold ~none:(Ok ()) ~some:(check_digest Bin.bin_shape_t) digest
-  |> Result.map (fun _ -> Bin.bin_read_t arr ~pos_ref:(ref 0))
+let from_buffer (type a) ((module Bin) : a m) arr =
+  Bin.bin_read_t arr ~pos_ref:(ref 0)

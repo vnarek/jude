@@ -55,6 +55,5 @@ let rec pong () ctx =
 let () =
   (*Logs.Src.set_level Jude.Log.log_src (Some Debug)*)
   Logs.set_reporter (Logs.format_reporter ());
-  Arbiter.init ();
   let _ = Arbiter.spawn (pong ()) in
   Arbiter.run ()

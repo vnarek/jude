@@ -62,10 +62,9 @@ module Discovery = struct
     Luv.UDP.recv_start t.socket
     @@ handle_res ~msg:"read error: %s" (function
          | _, None, _ -> ()
-         | buffer, Some client, _flags -> (
-             match Binable.from_buffer (module Msg) buffer with
-             | Error e -> Log.warn (fun m -> m "discovery msg err: %s" e)
-             | Ok msg -> if msg <> t.discovery then fn msg client ));
+         | buffer, Some client, _flags ->
+             let msg = Binable.from_buffer (module Msg) buffer in
+             if msg <> t.discovery then fn msg client);
     let timer = Luv.Timer.init () |> Result.unwrap "discovery start" in
     let send_addr =
       Luv.Sockaddr.ipv4 "224.100.0.1" 6999 |> Result.unwrap "udp sockaddr"

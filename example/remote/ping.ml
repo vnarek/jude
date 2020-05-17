@@ -30,7 +30,6 @@ let dummy () _ = Matcher.sink
 let () =
   Logs.Src.set_level Jude.Log.src (Some Debug);
   Logs.set_reporter (Logs.format_reporter ());
-  Arbiter.init ();
 
   let _ = ping () in
   let pid = Arbiter.spawn @@ dummy () in
