@@ -122,6 +122,7 @@ module Make (B : Backend.B) : ARBITER = struct
     B.send dest buf
 
   let init () =
+    let register_nonlocal = Registry.register ~local:false arb.registry in
     B.start
       ~on_conn:(fun buf ->
         let module Msg = System.Msg in
@@ -133,9 +134,14 @@ module Make (B : Backend.B) : ARBITER = struct
             List.iter
               (fun (n, pid) ->
                 Log.debug (fun m -> m "registering name: %s" n);
-                Registry.register ~local:false arb.registry n pid)
+                register_nonlocal n pid)
               re.names;
-            if not re.ack then send_ready re.source true)
+            if not re.ack then send_ready re.source true
+        | Msg.Name_update diff -> (
+            System.Diff.(
+              match diff with
+              | New (name, pid) -> register_nonlocal name pid
+              | Delete name -> Registry.unregister arb.registry name) ))
       ~on_disc:(fun dest ->
         let ip, port = dest in
         Log.debug (fun m -> m "discovered: %s:%d" ip port);

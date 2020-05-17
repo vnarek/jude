@@ -1,3 +1,11 @@
+module Diff = struct
+  open Bin_prot.Std
+
+  type name = string * Pid.t [@@deriving bin_io]
+
+  type t = New of name | Delete of string [@@deriving bin_io]
+end
+
 module Msg = struct
   open Bin_prot.Std
 
@@ -7,12 +15,9 @@ module Msg = struct
 
   type t =
     | Syn of (string * int)
-    | Ready of {
-        source : string * int;
-        names : (string * Pid.t) list;
-        ack : bool;
-      }
+    | Ready of { source : string * int; names : Diff.name list; ack : bool }
     | Deliver_msg of (pid * digest * bytes)
+    | Name_update of Diff.t
   [@@deriving bin_io]
 end
 
