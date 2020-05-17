@@ -14,6 +14,8 @@ module type B = sig
   val start : on_disc:(conn -> unit) -> on_conn:(Luv.Buffer.t -> unit) -> unit
 
   val send : conn -> Luv.Buffer.t -> unit
+
+  val send_all : Luv.Buffer.t -> unit
 end
 
 module Make : functor (_ : CONFIG) -> B

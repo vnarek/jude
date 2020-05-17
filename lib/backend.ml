@@ -18,6 +18,8 @@ module type B = sig
   val start : on_disc:(conn -> unit) -> on_conn:(Luv.Buffer.t -> unit) -> unit
 
   val send : conn -> Luv.Buffer.t -> unit
+
+  val send_all : Luv.Buffer.t -> unit
 end
 
 let default_err = format_of_string "error: %s"
@@ -142,8 +144,14 @@ module Make (C : CONFIG) : B = struct
               client))
     |> Result.unwrap "async send to client"
 
-  let send destination buf =
-    Channel.send state.send_ch (destination, buf);
+  let send dest buf =
+    Channel.send state.send_ch (dest, buf);
+    Luv.Async.send async_send_to_client
+    |> handle_res ~msg:"send error: %s" ignore
+
+  let send_all buf =
+    Hashtbl.to_seq_keys state.clients
+    |> Seq.iter (fun dest -> Channel.send state.send_ch (dest, buf));
     Luv.Async.send async_send_to_client
     |> handle_res ~msg:"send error: %s" ignore
 

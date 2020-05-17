@@ -1,6 +1,6 @@
 type string_set = (string, unit) Hashtbl.t
 
-type record = { pid : Pid.t; is_local : bool }
+type record = { pid : Pid.t; is_local : bool; is_public : bool }
 
 type t = {
   names : (string, record) Hashtbl.t;
@@ -15,18 +15,17 @@ let create () =
     on_name = Hashtbl.create 100;
   }
 
-let get_name t name =
-  Hashtbl.find_opt t.names name |> Option.map (fun re -> re.pid)
+let get_record t name = Hashtbl.find_opt t.names name
 
 let get_public_names t =
   Hashtbl.to_seq t.names
-  |> Seq.filter (fun (_, re) -> re.is_local)
+  |> Seq.filter (fun (_, re) -> re.is_local && re.is_public)
   |> Seq.map (fun (name, re) -> (name, re.pid))
   |> List.of_seq
 
 let on_name t name fn =
-  match get_name t name with
-  | Some pid -> fn pid
+  match get_record t name with
+  | Some re -> fn re.pid
   | None ->
       Hashtbl.find_opt t.on_name name
       |> Option.map @@ List.cons fn
@@ -41,15 +40,11 @@ let process_on_name_callbacks t name pid =
      clb pid );
   Hashtbl.remove t.on_name name
 
-let register ~local t name pid =
-  Hashtbl.replace t.names name { pid; is_local = local };
+let register ?(public = false) ~local t name pid =
+  Hashtbl.replace t.names name { pid; is_local = local; is_public = public };
   (*TODO: Check and report if already registered *)
   let pid_names = Hashtbl.find_opt t.names_rev pid in
-  let ht =
-    match pid_names with
-    | Some h -> h
-    | None -> Hashtbl.create 100
-  in
+  let ht = match pid_names with Some h -> h | None -> Hashtbl.create 100 in
   Hashtbl.add ht name ();
   process_on_name_callbacks t name pid
 

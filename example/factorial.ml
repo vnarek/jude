@@ -67,6 +67,6 @@ let () =
   Logs.Src.set_level Jude.Log.src (Some Debug);
   Logs.set_reporter (Logs.format_reporter ());
   let pid = Arbiter.spawn (factorial ()) in
-  Arbiter.register "factorial" pid;
+  Arbiter.register ~public:false "factorial" pid;
   let _ = Arbiter.spawn (customer 5) in
   Arbiter.run ()

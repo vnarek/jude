@@ -15,6 +15,7 @@ let pong () ctx =
     [
       (Matcher.case (module Ping_msg) @@ function
        | Ping (sender_pid, num) ->
+           Arbiter.register ~public:true "dumbledore" sender_pid;
            Logs.app (fun m -> m "got PONG! ack number:%d" num);
            Luv.Time.sleep 1000;
            Arbiter.send sender_pid (module Pong_msg)
@@ -25,5 +26,5 @@ let () =
   Logs.Src.set_level Jude.Log.src (Some Debug);
   Logs.set_reporter (Logs.format_reporter ());
   let pid = Arbiter.spawn (pong ()) in
-  Arbiter.register "pong" pid;
+  Arbiter.register ~public:true "pong" pid;
   Arbiter.run ()

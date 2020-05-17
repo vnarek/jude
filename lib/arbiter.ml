@@ -18,7 +18,7 @@ module type ARBITER = sig
 
   val link : Pid.t -> Pid.t -> unit
 
-  val register : string -> Pid.t -> unit
+  val register : public:bool -> string -> Pid.t -> unit
 
   val unregister : string -> unit
 
@@ -102,13 +102,23 @@ module Make (B : Backend.B) : ARBITER = struct
         let buf = Binable.to_buffer (module System.Msg) msg in
         B.send addr_port buf
 
-  let register = Registry.register ~local:true arb.registry
+  let send_name_update diff =
+    let msg = System.Msg.Name_update diff in
+    let buf = Binable.to_buffer (module System.Msg) msg in
+    B.send_all buf
 
-  let unregister = Registry.unregister arb.registry
+  let register ~public name pid =
+    Registry.register ~public ~local:true arb.registry name pid;
+    if public then send_name_update (System.Diff.New (name, pid))
+
+  let get_name name =
+    Registry.(get_record arb.registry name |> Option.map (fun re -> re.pid))
+
+  let unregister name =
+    Registry.get_record arb.registry name
+    |> Option.iter (fun _ -> Registry.unregister arb.registry name)
 
   let unregister_all = Registry.unregister_all arb.registry
-
-  let get_name = Registry.get_name arb.registry
 
   let resolve_name name customer =
     let module Res = System.Resolution_msg in

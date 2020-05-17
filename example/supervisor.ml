@@ -48,7 +48,10 @@ let () =
   Logs.set_reporter @@ Logs.format_reporter ();
   let t =
     Supervisor.create ~policy:Supervisor.All_for_one
-      [ { name = "ping"; beh = ping 2 }; { name = "pong"; beh = pong () } ]
+      [
+        { name = "ping"; public = true; beh = ping 2 };
+        { name = "pong"; public = true; beh = pong () };
+      ]
   in
   let _ = Arbiter.spawn @@ Supervisor.run t in
   Arbiter.run ()

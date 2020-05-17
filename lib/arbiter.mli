@@ -9,7 +9,7 @@ module type ARBITER = sig
 
   val link : Pid.t -> Pid.t -> unit
 
-  val register : string -> Pid.t -> unit
+  val register : public:bool -> string -> Pid.t -> unit
 
   val unregister : string -> unit
 

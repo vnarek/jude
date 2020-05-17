@@ -1,7 +1,7 @@
 module Supervisor (A : Arbiter.ARBITER) = struct
   module String_map = Map.Make (String)
 
-  type recipe = { name : string; beh : Actor.beh }
+  type recipe = { name : string; public : bool; beh : Actor.beh }
 
   type policy = One_for_one | All_for_one
 
@@ -19,17 +19,17 @@ module Supervisor (A : Arbiter.ARBITER) = struct
     in
     { policy; recipes; running = Hashtbl.create 20 }
 
-  let supervise self_pid name beh =
-    let pid = A.spawn beh in
+  let supervise self_pid name re =
+    let pid = A.spawn re.beh in
     A.monitor self_pid pid;
-    A.register name pid;
+    A.register ~public:re.public name pid;
     pid
 
   let init_all t self_pid =
     String_map.iter
-      (fun name recipe ->
-        let new_pid = supervise self_pid name recipe.beh in
-        Hashtbl.add t.running new_pid recipe)
+      (fun name re ->
+        let new_pid = supervise self_pid name re in
+        Hashtbl.add t.running new_pid re)
       t.recipes
 
   let exit_all t self_pid =
@@ -49,10 +49,10 @@ module Supervisor (A : Arbiter.ARBITER) = struct
     in
     match t.policy with
     | One_for_one ->
-        let recipe = Hashtbl.find t.running old_pid in
-        let new_pid = supervise self_pid recipe.name recipe.beh in
+        let re = Hashtbl.find t.running old_pid in
+        let new_pid = supervise self_pid re.name re in
         Hashtbl.remove t.running old_pid;
-        Hashtbl.replace t.running new_pid recipe
+        Hashtbl.replace t.running new_pid re
     | All_for_one ->
         exit_all t self_pid;
         init_all t self_pid

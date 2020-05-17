@@ -33,5 +33,5 @@ let () =
 
   let _ = ping () in
   let pid = Arbiter.spawn @@ dummy () in
-  Arbiter.register "dummy" pid;
+  Arbiter.register ~public:false "dummy" pid;
   Arbiter.run ()

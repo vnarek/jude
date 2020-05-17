@@ -35,7 +35,7 @@ let rec pong () ctx =
     Arbiter.spawn
       (ping ~onfailure:(fun pid -> Arbiter.exit pid (`Normal self_pid)) 2)
   in
-  Arbiter.register "ping" pid;
+  Arbiter.register ~public:true "ping" pid;
   Arbiter.monitor self_pid pid;
   Arbiter.send pid (module Ping_msg) (Ping_msg.Ping self_pid);
   Matcher.(
