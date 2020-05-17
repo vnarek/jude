@@ -4,7 +4,7 @@ module type CONFIG = sig
   val server_port : int
 end
 
-module DefaultConfig : CONFIG
+module Default_config : CONFIG
 
 module type B = sig
   type conn = Conn.t

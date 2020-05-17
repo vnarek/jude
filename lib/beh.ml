@@ -1,5 +1,5 @@
 module Supervisor (A : Arbiter.ARBITER) = struct
-  module StringMap = Map.Make (String)
+  module String_map = Map.Make (String)
 
   type recipe = { name : string; beh : Actor.beh }
 
@@ -7,15 +7,15 @@ module Supervisor (A : Arbiter.ARBITER) = struct
 
   type t = {
     policy : policy;
-    recipes : recipe StringMap.t;
+    recipes : recipe String_map.t;
     running : (Pid.t, recipe) Hashtbl.t;
   }
 
   let create ?(policy = One_for_one) recipes =
     let recipes =
       List.fold_left
-        (fun acc r -> StringMap.add r.name r acc)
-        StringMap.empty recipes
+        (fun acc r -> String_map.add r.name r acc)
+        String_map.empty recipes
     in
     { policy; recipes; running = Hashtbl.create 20 }
 
@@ -26,10 +26,10 @@ module Supervisor (A : Arbiter.ARBITER) = struct
     pid
 
   let init_all t self_pid =
-    StringMap.iter
+    String_map.iter
       (fun name recipe ->
-        let newPid = supervise self_pid name recipe.beh in
-        Hashtbl.add t.running newPid recipe)
+        let new_pid = supervise self_pid name recipe.beh in
+        Hashtbl.add t.running new_pid recipe)
       t.recipes
 
   let exit_all t self_pid =

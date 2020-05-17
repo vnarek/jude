@@ -14,14 +14,14 @@ let ping () =
   Resolver.resolve "pong" (fun pong_pid ctx ->
       (*Luv.Time.sleep 1000;*)
       let self_pid = Actor.self_pid ctx in
-      Arbiter.send pong_pid (module PingMsg) @@ Ping (self_pid, 0);
+      Arbiter.send pong_pid (module Ping_msg) @@ Ping (self_pid, 0);
       Matcher.react
         [
-          (Matcher.case (module PongMsg) @@ function
-           | Pong (senderPid, num) ->
+          (Matcher.case (module Pong_msg) @@ function
+           | Pong (sender_pid, num) ->
                Logs.app (fun m -> m "got PING! ack number: %d" num);
                Luv.Time.sleep 1000;
-               Arbiter.send senderPid (module PingMsg)
+               Arbiter.send sender_pid (module Ping_msg)
                @@ Ping (self_pid, num - 99));
         ])
 

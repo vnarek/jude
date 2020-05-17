@@ -13,11 +13,12 @@ let pong () ctx =
   let self_pid = Actor.self_pid ctx in
   Matcher.react
     [
-      (Matcher.case (module PingMsg) @@ function
-       | Ping (senderPid, num) ->
+      (Matcher.case (module Ping_msg) @@ function
+       | Ping (sender_pid, num) ->
            Logs.app (fun m -> m "got PONG! ack number:%d" num);
            Luv.Time.sleep 1000;
-           Arbiter.send senderPid (module PongMsg) @@ Pong (self_pid, 100 + num));
+           Arbiter.send sender_pid (module Pong_msg)
+           @@ Pong (self_pid, 100 + num));
     ]
 
 let () =

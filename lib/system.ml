@@ -12,7 +12,7 @@ module Msg = struct
         names : (string * Pid.t) list;
         ack : bool;
       }
-    | ToActor of (pid * digest * bytes)
+    | Deliver_msg of (pid * digest * bytes)
   [@@deriving bin_io]
 end
 

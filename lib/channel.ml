@@ -1,4 +1,4 @@
-module SyncQueue = struct
+module Sync_queue = struct
   type 'a t = { q : 'a Queue.t; mux : Luv.Mutex.t }
 
   let create () =
@@ -18,7 +18,7 @@ module SyncQueue = struct
 end
 
 type 'a t = {
-  queue : 'a SyncQueue.t;
+  queue : 'a Sync_queue.t;
   mux : Luv.Mutex.t;
   cond : Luv.Condition.t;
   mutable closed : bool ref;
@@ -27,15 +27,15 @@ type 'a t = {
 let create () =
   let mux = Luv.Mutex.init () |> Result.unwrap "mutex init" in
   let cond = Luv.Condition.init () |> Result.unwrap "mutex init" in
-  { queue = SyncQueue.create (); mux; cond; closed = ref false }
+  { queue = Sync_queue.create (); mux; cond; closed = ref false }
 
 let send t a =
-  SyncQueue.send t.queue a;
+  Sync_queue.send t.queue a;
   Luv.Condition.signal t.cond
 
 let rec recv t =
   Luv.Mutex.lock t.mux;
-  match SyncQueue.pop t.queue with
+  match Sync_queue.pop t.queue with
   | Some x ->
       Luv.Mutex.unlock t.mux;
       Some x
@@ -50,7 +50,7 @@ let close t =
   Luv.Mutex.unlock t.mux
 
 let rec consume t fn =
-  match SyncQueue.pop t.queue with
+  match Sync_queue.pop t.queue with
   | Some x ->
       fn x;
       consume t fn

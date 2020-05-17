@@ -4,7 +4,7 @@ module type CONFIG = sig
   val server_port : int
 end
 
-module DefaultConfig : CONFIG = struct
+module Default_config : CONFIG = struct
   let server_ip = "127.0.0.1"
 
   let server_port = 7000

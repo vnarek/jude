@@ -8,11 +8,11 @@ end)
 
 module Arbiter = Jude.Arbiter.Make (Backend)
 
-module PingMsg = struct
+module Ping_msg = struct
   type t = Ping of Pid.t [@@deriving bin_io]
 end
 
-module PongMsg = struct
+module Pong_msg = struct
   type t = Pong of Pid.t [@@deriving bin_io]
 end
 
@@ -20,24 +20,24 @@ let ping () ctx =
   let self_pid = Actor.self_pid ctx in
   Matcher.react
     [
-      (Matcher.case (module PingMsg) @@ function
-       | Ping senderPid ->
+      (Matcher.case (module Ping_msg) @@ function
+       | Ping sender_pid ->
            Logs.app (fun m -> m "got PING!");
            Luv.Time.sleep 1000;
-           Arbiter.send senderPid (module PongMsg) (Pong self_pid));
+           Arbiter.send sender_pid (module Pong_msg) (Pong self_pid));
     ]
 
 let pong () ctx =
   let self_pid = Actor.self_pid ctx in
   let pid = Arbiter.spawn (ping ()) in
-  Arbiter.send pid (module PingMsg) (PingMsg.Ping self_pid);
+  Arbiter.send pid (module Ping_msg) (Ping_msg.Ping self_pid);
   Matcher.react
     [
-      (Matcher.case (module PongMsg) @@ function
-       | Pong senderPid ->
+      (Matcher.case (module Pong_msg) @@ function
+       | Pong sender_pid ->
            Logs.app (fun m -> m "got PONG!");
            Luv.Time.sleep 1000;
-           Arbiter.send senderPid (module PingMsg) (Ping self_pid));
+           Arbiter.send sender_pid (module Ping_msg) (Ping self_pid));
     ]
 
 let () =

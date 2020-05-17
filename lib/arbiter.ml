@@ -98,7 +98,7 @@ module Make (B : Backend.B) : ARBITER = struct
     match check_location pid with
     | Local id -> send_localy id digest msg_b
     | Remote (id, addr_port) ->
-        let msg = System.Msg.ToActor (id, digest, msg_b) in
+        let msg = System.Msg.Deliver_msg (id, digest, msg_b) in
         let buf = Binable.to_buffer (module System.Msg) msg in
         B.send addr_port buf
 
@@ -128,7 +128,7 @@ module Make (B : Backend.B) : ARBITER = struct
         let msg = Binable.from_buffer (module Msg) buf in
         match msg with
         | Msg.Syn source -> send_ready source false
-        | Msg.ToActor (pid, digest, msg) -> send_localy pid digest msg
+        | Msg.Deliver_msg (pid, digest, msg) -> send_localy pid digest msg
         | Msg.Ready re ->
             List.iter
               (fun (n, pid) ->

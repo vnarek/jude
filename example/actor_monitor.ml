@@ -8,11 +8,11 @@ end)
 
 module Arbiter = Jude.Arbiter.Make (Backend)
 
-module PingMsg = struct
+module Ping_msg = struct
   type t = Ping of Pid.t [@@deriving bin_io]
 end
 
-module PongMsg = struct
+module Pong_msg = struct
   type t = Pong of Pid.t [@@deriving bin_io]
 end
 
@@ -21,11 +21,11 @@ let rec ping ~onfailure num ctx =
   if num == 1 then onfailure self_pid;
   Matcher.react
     [
-      (Matcher.case (module PingMsg) @@ function
-       | Ping senderPid ->
+      (Matcher.case (module Ping_msg) @@ function
+       | Ping sender_pid ->
            Logs.app (fun m -> m "got PING!");
            Luv.Time.sleep 1000;
-           Arbiter.send senderPid (module PongMsg) (Pong self_pid);
+           Arbiter.send sender_pid (module Pong_msg) (Pong self_pid);
            Actor.become ctx (ping ~onfailure (num - 1)));
     ]
 
@@ -37,15 +37,15 @@ let rec pong () ctx =
   in
   Arbiter.register "ping" pid;
   Arbiter.monitor self_pid pid;
-  Arbiter.send pid (module PingMsg) (PingMsg.Ping self_pid);
+  Arbiter.send pid (module Ping_msg) (Ping_msg.Ping self_pid);
   Matcher.(
     react
       [
-        (case (module PongMsg) @@ function
-         | Pong senderPid ->
+        (case (module Pong_msg) @@ function
+         | Pong sender_pid ->
              Logs.app (fun m -> m "got PONG!");
              Luv.Time.sleep 1000;
-             Arbiter.send senderPid (module PingMsg) (Ping self_pid));
+             Arbiter.send sender_pid (module Ping_msg) (Ping self_pid));
         (case (module System.Msg_exit) @@ function
          | _ ->
              Logs.app (fun m -> m "restarting");
