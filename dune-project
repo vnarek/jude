@@ -22,4 +22,5 @@
   (odoc :with-doc)
   ocamlformat
   luv
+  uuidm
   logs))
