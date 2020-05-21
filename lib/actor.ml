@@ -1,5 +1,3 @@
-type error = Digest_mismatch of string * string
-
 type 'a set = ('a, unit) Hashtbl.t
 
 type process_flags = [ `Trap_exit ]

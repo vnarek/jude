@@ -1,12 +1,15 @@
+(** Module defines data structure representing actor internal [t] and public
+    data types [beh]*)
+
 type t
 
 type beh = t -> Matcher.t
 
-type error = Digest_mismatch of string * string
-
 type process_flags = [ `Trap_exit ]
+(** Flags that are set using [set_flag] *)
 
 val create : Pid.t -> t
+(** Create is used to create new [t] *)
 
 val receive : t -> string -> bytes -> unit
 
@@ -15,6 +18,7 @@ val init : (t -> Matcher.t) -> t -> unit
 val step : t -> unit
 
 val self_pid : t -> Pid.t
+(** Returns pid of an actor *)
 
 val become : t -> (t -> Matcher.t) -> unit
 

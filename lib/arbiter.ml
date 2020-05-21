@@ -28,9 +28,9 @@ module type ARBITER = sig
 
   val exit : Pid.t -> System.Msg_exit.t -> unit
 
-  val unmonitor : Pid.t -> Pid.t -> unit
-
   val monitor : Pid.t -> Pid.t -> unit
+
+  val unmonitor : Pid.t -> Pid.t -> unit
 
   val become : Actor.t -> Actor.beh -> unit
 end
