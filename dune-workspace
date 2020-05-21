@@ -1,8 +1,0 @@
-(lang dune 2.6)
-
-(context default)
-
-(context
- (default
-  (name coverage)
-  (bisect_enabled true)))

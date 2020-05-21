@@ -1,6 +1,5 @@
 (library
  (name jude)
- (bisect_ppx)
  (public_name jude)
  (flags
   (:standard -safe-string -w +A-48 -warn-error +A-3-44))

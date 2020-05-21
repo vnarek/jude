@@ -1,6 +1,4 @@
-(lang dune 2.6)
-
-(using bisect_ppx 1.0)
+(lang dune 2.4)
 
 (name jude)
 
