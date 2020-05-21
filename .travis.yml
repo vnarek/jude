@@ -1,8 +1,5 @@
 language: c
-install: 
-  - wget https://raw.githubusercontent.com/ocaml/ocaml-ci-scripts/master/.travis-opam.sh
-  - wget https://raw.githubusercontent.com/ocaml/ocaml-ci-scripts/master/.travis-docgen.sh
-script: bash -ex .travis-opam.sh && bash -ex .travis-docgen.sh
+script: bash -ex scripts/opam.sh && bash -ex scripts/docgen.sh
 env:
   matrix:
   - OCAML_VERSION=4.08
