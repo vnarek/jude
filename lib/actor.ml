@@ -36,7 +36,7 @@ let step t =
   Mailbox.filter t.mailbox (fun (digest, buf) ->
       let r = !(t.cont) digest buf in
       Result.iter_error (fun r -> Log.debug (fun m -> m "%s" r)) r;
-      Result.is_error r)
+      Result.is_ok r)
 
 let self_pid { self_pid; _ } = self_pid
 

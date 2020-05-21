@@ -25,7 +25,7 @@ let take { mutex; queue } =
 
 let filter { mutex; queue } fn =
   Luv.Rwlock.wrlock mutex;
-  let new_list = List.filter fn !queue in
+  let new_list = List.filter (fun m -> not (fn m)) !queue in
   queue := new_list;
   Luv.Rwlock.wrunlock mutex
 
