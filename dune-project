@@ -1,6 +1,7 @@
 (lang dune 2.4)
 
 (name jude)
+(version d09c27b)
 
 (generate_opam_files true)
 
