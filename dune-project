@@ -13,6 +13,8 @@
  (homepage "https://github.com/vnarek/jude")
  (bug_reports "https://github.com/vnarek/jude/issues")
  (depends
+  bin_prot
+  ppx_deriving
   (alcotest :with-test)
   (odoc :with-doc)
   ocamlformat
