@@ -10,6 +10,8 @@ homepage: "https://github.com/vnarek/jude"
 bug-reports: "https://github.com/vnarek/jude/issues"
 depends: [
   "dune" {>= "2.4"}
+  "bin_prot"
+  "ppx_deriving" {with-test}
   "alcotest" {with-test}
   "odoc" {with-doc}
   "ocamlformat"

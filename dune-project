@@ -14,7 +14,7 @@
  (bug_reports "https://github.com/vnarek/jude/issues")
  (depends
   bin_prot
-  ppx_deriving
+  (ppx_deriving :with-test)
   (alcotest :with-test)
   (odoc :with-doc)
   ocamlformat
