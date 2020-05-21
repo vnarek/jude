@@ -1,0 +1,5 @@
+profile = conventional
+margin = 80
+parse-docstrings = true
+wrap-comments = true
+version=0.14.1

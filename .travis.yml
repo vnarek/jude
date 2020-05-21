@@ -1,0 +1,11 @@
+language: c
+script: bash -ex scripts/opam.sh && bash -ex scripts/docgen.sh
+env:
+  matrix:
+  - OCAML_VERSION=4.08
+  - OCAML_VERSION=4.09
+  - OCAML_VERSION=4.10
+  global:
+    secure: e72Bmw0mBC9MGEuAntZVahYCPbaiJXI7bre2NBs1Z1kOAV0AZvvVjS0jaZYNobn22Ol0MIPH7KVTYN45hD1mTja4FIktwvbEPgq2CA03lGOIhr4qz7oLWCTKUcYgAHZSrDdudAGve45j8XYSe/hlYNfiHlkNHTcBSPRIptbDpGOFTISxcSYmFaw/xkYY5sORWqUQyrpjYYqHgi+W8SCQb2yuUGnUhs4mjiDj+0UtGi+vjQJCxgtjEUMQRzHsczasDZt7AGN5OLJ5+4Ypk/qTsIOCCnlN6wBfaDIvQHNXUC4LMXCzQiL9J2FMMoEfNLL2OJrh56sJqMfjUb9IytQZmoMavgELGJBOFWkayA3f/KdtNHXdlWqeq2G9aGkFL6jbNa+xcJmtEcwyOzoMP/3cnO754se9gyO0KUZKkcG5a/1Sa1yHn9vt4CpNO1Gj1TT7BW5R1vzvnwOceW+l4X2Lrb5V1GKqtZJfPbCFkLflEYZO0DI7V7yG22PJhRI1hkTsJTBfMxnMwVPAfGvSp2DQIT8v7/srGpgcSi1JdBPtToyKJ73FuYqc9GbrEz/WKLQ0WOL1h/Mik+jdIuttBtCwZRtSC7wOqxOJxaol20bqm++D9ZdrsLVkSBj4402Pblnk9qTtsyIDA3/GH4mgiPqBVcd2F1YLekgwrXTsaTnMYt0=
+os:
+- linux
