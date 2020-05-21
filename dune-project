@@ -1,6 +1,7 @@
 (lang dune 2.4)
 
 (name jude)
+
 (version d09c27b)
 
 (generate_opam_files true)
@@ -15,6 +16,7 @@
  (bug_reports "https://github.com/vnarek/jude/issues")
  (depends
   bin_prot
+  ppx_bin_prot
   (ppx_deriving :with-test)
   (alcotest :with-test)
   (odoc :with-doc)

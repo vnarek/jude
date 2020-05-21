@@ -1,5 +1,5 @@
 (tests
  (names tester)
- (libraries alcotest jude ppx_bin_prot ppx_deriving)
+ (libraries alcotest jude bin_prot ppx_bin_prot ppx_deriving)
  (preprocess
   (pps ppx_deriving.show ppx_deriving.eq ppx_bin_prot)))

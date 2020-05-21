@@ -3,6 +3,6 @@
  (public_name jude)
  (flags
   (:standard -safe-string -w +A-48 -warn-error +A-3-44))
- (libraries luv bin_prot uuidm logs)
+ (libraries luv ppx_bin_prot uuidm logs)
  (preprocess
   (pps ppx_bin_prot)))
