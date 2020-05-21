@@ -15,5 +15,6 @@
    (= "git+https://github.com/ocaml/dune.git#d29cb8522f0c"))
   (alcotest :with-test)
   (odoc :with-doc)
+  ocamlformat
   luv
   logs))
