@@ -10,9 +10,11 @@
  (name jude)
  (synopsis "Actor model implemented in OCaml - early alpha")
  (description "Actor model implemented in OCaml - early alpha\n")
+ (maintainers "Narek Vardanjan")
+ (authors "Narek Vardanjan")
+ (homepage "https://github.com/vnarek/jude")
+ (bug_reports "https://github.com/vnarek/jude/issues")
  (depends
-  (dune
-   (= "git+https://github.com/ocaml/dune.git#d29cb8522f0c"))
   (alcotest :with-test)
   (odoc :with-doc)
   ocamlformat

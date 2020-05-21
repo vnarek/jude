@@ -1,3 +1,3 @@
 pin-depends: [
-  ["dune" "git+https://github.com/ocaml/dune.git#d29cb8522f0c" ]
+  ["dune.2.6.0" "git+https://github.com/ocaml/dune.git#d29cb8522f0c" ]
 ]

@@ -4,8 +4,12 @@ synopsis: "Actor model implemented in OCaml - early alpha"
 description: """
 Actor model implemented in OCaml - early alpha
 """
+maintainer: ["Narek Vardanjan"]
+authors: ["Narek Vardanjan"]
+homepage: "https://github.com/vnarek/jude"
+bug-reports: "https://github.com/vnarek/jude/issues"
 depends: [
-  "dune" {>= "2.6" & = "git+https://github.com/ocaml/dune.git#d29cb8522f0c"}
+  "dune" {>= "2.6"}
   "alcotest" {with-test}
   "odoc" {with-doc}
   "ocamlformat"
@@ -27,5 +31,5 @@ build: [
   ]
 ]
 pin-depends: [
-  ["dune" "git+https://github.com/ocaml/dune.git#d29cb8522f0c" ]
+  ["dune.2.6.0" "git+https://github.com/ocaml/dune.git#d29cb8522f0c" ]
 ]
