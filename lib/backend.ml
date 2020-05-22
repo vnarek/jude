@@ -1,14 +1,31 @@
+module type SERVER_CONFIG = sig
+  type t = { ip : string; port : int } [@@deriving bin_io]
+end
+
+module Server_config : SERVER_CONFIG = struct
+  open Bin_prot.Std
+
+  type t = { ip : string; port : int } [@@deriving bin_io]
+end
+
+let default_server_config = Server_config.{ ip = "127.0.0.1"; port = 7000 }
+
+let default_discovery_config = Server_config.{ ip = "224.100.0.1"; port = 6999 }
+
 module type CONFIG = sig
-  val server_ip : string
+  val server : Server_config.t
 
-  val server_port : int
+  val discovery : Server_config.t
 end
 
-module Default_config : CONFIG = struct
-  let server_ip = "127.0.0.1"
+let create_config ?(server = default_server_config)
+    ?(discovery = default_discovery_config) () =
+  let module C = struct
+    let server = server
 
-  let server_port = 7000
-end
+    let discovery = discovery
+  end in
+  (module C : CONFIG)
 
 module type B = sig
   type conn = Conn.t
@@ -34,30 +51,18 @@ let handle_res ?(on_error = ignore) ?(msg = default_err) fn res =
   | Ok k -> fn k
 
 module Discovery = struct
-  module Msg = struct
-    open Bin_prot.Std
+  type t = { discovery : Server_config.t; socket : Luv.UDP.t }
 
-    type t = { ip : string; port : int } [@@deriving bin_io]
-  end
-
-  module Config = struct
-    let port = 6999
-
-    let address = "224.100.0.1"
-  end
-
-  type t = { discovery : Msg.t; socket : Luv.UDP.t }
-
-  let create ip port =
+  let create server Server_config.{ ip; port } =
     let open Result.Syntax in
     let inet_addr = Unix.string_of_inet_addr Unix.inet_addr_any in
     Luv.UDP.init ()
     >>= (fun socket ->
-          Luv.Sockaddr.ipv4 inet_addr Config.port >>= fun recv_address ->
+          Luv.Sockaddr.ipv4 inet_addr port >>= fun recv_address ->
           Luv.UDP.bind ~reuseaddr:true socket recv_address >>= fun _ ->
-          Luv.UDP.set_membership socket ~group:Config.address
-            ~interface:inet_addr `JOIN_GROUP
-          >>= fun _ -> Ok { discovery = Msg.{ ip; port }; socket })
+          Luv.UDP.set_membership socket ~group:ip ~interface:inet_addr
+            `JOIN_GROUP
+          >>= fun _ -> Ok { discovery = server; socket })
     |> Result.unwrap "discovery create"
 
   let start t fn =
@@ -65,14 +70,14 @@ module Discovery = struct
     @@ handle_res ~msg:"read error: %s" (function
          | _, None, _ -> ()
          | buffer, Some client, _flags ->
-             let msg = Binable.from_buffer (module Msg) buffer in
+             let msg = Binable.from_buffer (module Server_config) buffer in
              if msg <> t.discovery then fn msg client);
     let timer = Luv.Timer.init () |> Result.unwrap "discovery start" in
     let send_addr =
       Luv.Sockaddr.ipv4 "224.100.0.1" 6999 |> Result.unwrap "udp sockaddr"
     in
     Luv.Timer.start timer ~repeat:3000 0 (fun _ ->
-        let buf = Binable.to_buffer (module Msg) t.discovery in
+        let buf = Binable.to_buffer (module Server_config) t.discovery in
         Luv.UDP.send t.socket [ buf ] send_addr @@ function
         | Error e -> report_err "error sending discovery: %s" e
         | Ok () -> ())
@@ -81,6 +86,7 @@ end
 
 module Make (C : CONFIG) : B = struct
   include C
+  open Server_config
 
   type t = {
     server : Luv.TCP.t;
@@ -91,10 +97,10 @@ module Make (C : CONFIG) : B = struct
 
   type conn = Conn.t
 
-  let server_conn = (C.server_ip, C.server_port)
+  let server_conn = (C.server.ip, C.server.port)
 
   let server_address =
-    Luv.Sockaddr.ipv4 C.server_ip C.server_port
+    Luv.Sockaddr.ipv4 C.server.ip C.server.port
     |> Result.unwrap "backend server address"
 
   let create_arbiter () =
@@ -105,7 +111,7 @@ module Make (C : CONFIG) : B = struct
   let state =
     {
       server = create_arbiter ();
-      discovery = Discovery.create C.server_ip C.server_port;
+      discovery = Discovery.create C.server C.discovery;
       clients = Hashtbl.create 100;
       send_ch = Channel.create ();
     }
@@ -174,7 +180,7 @@ module Make (C : CONFIG) : B = struct
                         Luv.Handle.close client ignore
                     | Ok buffer -> on_conn buffer)));
     Discovery.start state.discovery (fun msg _sock ->
-        let destination = Discovery.Msg.(msg.ip, msg.port) in
+        let destination = Server_config.(msg.ip, msg.port) in
         match Hashtbl.find_opt state.clients destination with
         | None ->
             connect destination

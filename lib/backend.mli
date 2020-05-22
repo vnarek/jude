@@ -1,10 +1,20 @@
-module type CONFIG = sig
-  val server_ip : string
-
-  val server_port : int
+module type SERVER_CONFIG = sig
+  type t = { ip : string; port : int } [@@deriving bin_io]
 end
 
-module Default_config : CONFIG
+module Server_config : SERVER_CONFIG
+
+module type CONFIG = sig
+  val server : Server_config.t
+
+  val discovery : Server_config.t
+end
+
+val create_config :
+  ?server:Server_config.t ->
+  ?discovery:Server_config.t ->
+  unit ->
+  (module CONFIG)
 
 module type B = sig
   type conn = Conn.t

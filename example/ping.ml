@@ -1,10 +1,6 @@
 open Jude
 
-module Backend = Jude.Backend.Make (struct
-  let server_ip = "127.0.0.1"
-
-  let server_port = 7000
-end)
+module Backend = Backend.Make ((val Backend.create_config ()))
 
 module Arbiter = Jude.Arbiter.Make (Backend)
 
