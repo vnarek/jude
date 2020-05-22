@@ -14,14 +14,15 @@ let test_msg_identity_property () =
   Msg.[ Adioso "mama mia"; Erroroso 5 ]
   |> List.iter (fun msg ->
          Jude.Binable.(
-           let _, bytes = to_bytes (module Msg) msg in
-           let msg' = from_bytes (module Msg) bytes |> Result.get_ok in
+           let _, b = to_bytes (module Msg) msg in
+           let msg' = from_bytes (module Msg) b |> Result.get_ok in
            Alcotest.(check (module Msg)) "should equal" msg msg'))
 
 let test_digest () =
-  let digest, bytes = Jude.Binable.to_bytes (module Msg) (Msg.Adioso "ahoj") in
-  Jude.Binable.from_bytes (module Msg2) ~digest bytes
-  |> Result.iter (fun _ -> Alcotest.fail "error")
+  let msg_to_bytes = Jude.Binable.to_bytes (module Msg) in
+  let msg_from_bytes = Jude.Binable.from_bytes (module Msg) in
+  let digest, b = msg_to_bytes (Msg.Adioso "ahoj") in
+  msg_from_bytes ~digest b |> Result.iter (fun _ -> Alcotest.fail "digest fail")
 
 let tests =
   [
