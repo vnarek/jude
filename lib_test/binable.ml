@@ -20,7 +20,7 @@ let test_msg_identity_property () =
 
 let test_digest () =
   let msg_to_bytes = Jude.Binable.to_bytes (module Msg) in
-  let msg_from_bytes = Jude.Binable.from_bytes (module Msg) in
+  let msg_from_bytes = Jude.Binable.from_bytes (module Msg2) in
   let digest, b = msg_to_bytes (Msg.Adioso "ahoj") in
   msg_from_bytes ~digest b |> Result.iter (fun _ -> Alcotest.fail "digest fail")
 
