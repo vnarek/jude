@@ -9,3 +9,5 @@ val take : 'a t -> 'a option
 val filter : 'a t -> ('a -> bool) -> unit
 
 val destroy : 'a t -> unit
+
+val process_message: 'a t -> ('a list -> 'a list option) -> unit

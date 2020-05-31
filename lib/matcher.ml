@@ -1,20 +1,30 @@
-type t = string -> bytes -> (unit, string) result
+type messages = (string * bytes) list
 
-let case (type a) (m : a Binable.m) fn digest msg =
-  let res = Binable.from_bytes m ~digest msg in
-  Result.iter fn res;
-  Result.bind res (fun _ -> Ok ())
+type t = messages -> messages option
 
-let rec react matchers digest msg =
+let case (type a) =
+  let rec case (m : a Binable.m) ?(acc = []) fn messages =
+    match messages with
+    | [] -> None
+    | (digest, msg) :: rest -> (
+        match Binable.from_bytes m ~digest msg with
+        | Error str ->
+            Log.debug (fun m -> m "case error: %s" str);
+            case m fn rest ~acc:((digest, msg) :: acc)
+        | Ok a ->
+            fn a;
+            Some rest )
+  in
+  case ~acc:[]
+
+let rec react (matchers : t list) messages =
   match matchers with
-  | [] -> Error "no match"
+  | [] -> None
   | m :: rest -> (
-      match m digest msg with
-      | Error r ->
-          Log.debug (fun m -> m "mismatch: %s" r);
-          react rest digest msg
-      | Ok () -> Ok () )
+      match m messages with
+      | None -> react rest messages
+      | Some messages -> Some messages )
 
-let sink _ _ = Ok ()
+let sink _ = Some []
 
-let block _ _ = Error "block"
+let block msgs = Some msgs

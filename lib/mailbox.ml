@@ -1,18 +1,20 @@
+module Rwlock = Luv.Rwlock
+
 let ( let+ ) r f = Result.map f r
 
-type 'a t = { mutex : Luv.Rwlock.t; queue : 'a list ref }
+type 'a t = { mutex : Rwlock.t; queue : 'a list ref }
 
 let create () =
-  let+ mutex = Luv.Rwlock.init () in
+  let+ mutex = Rwlock.init () in
   { mutex; queue = ref [] }
 
 let push { mutex; queue } msg =
-  Luv.Rwlock.wrlock mutex;
+  Rwlock.wrlock mutex;
   queue := msg :: !queue;
-  Luv.Rwlock.wrunlock mutex
+  Rwlock.wrunlock mutex
 
 let take { mutex; queue } =
-  Luv.Rwlock.wrlock mutex;
+  Rwlock.wrlock mutex;
   let msg =
     match !queue with
     | x :: xs ->
@@ -20,13 +22,23 @@ let take { mutex; queue } =
         Some x
     | _ -> None
   in
-  Luv.Rwlock.wrunlock mutex;
+  Rwlock.wrunlock mutex;
   msg
 
+let process_message { mutex; queue } fn =
+  Rwlock.wrlock mutex;
+  let msgs = !queue in
+  queue := [];
+  Rwlock.wrunlock mutex;
+  let rest = Option.value ~default:msgs (fn msgs) in
+  Rwlock.wrlock mutex;
+  queue := List.append !queue rest;
+  Rwlock.wrunlock mutex
+
 let filter { mutex; queue } fn =
-  Luv.Rwlock.wrlock mutex;
+  Rwlock.wrlock mutex;
   let new_list = List.filter (fun m -> not (fn m)) !queue in
   queue := new_list;
-  Luv.Rwlock.wrunlock mutex
+  Rwlock.wrunlock mutex
 
-let destroy t = Luv.Rwlock.destroy t.mutex
+let destroy t = Rwlock.destroy t.mutex

@@ -30,11 +30,7 @@ let init fn t =
 
 let receive t digest buf = Mailbox.push t.mailbox (digest, buf)
 
-let step t =
-  Mailbox.filter t.mailbox (fun (digest, buf) ->
-      let r = !(t.cont) digest buf in
-      Result.iter_error (fun r -> Log.debug (fun m -> m "%s" r)) r;
-      Result.is_ok r)
+let step t = Mailbox.process_message t.mailbox !(t.cont)
 
 let self_pid { self_pid; _ } = self_pid
 
