@@ -38,7 +38,13 @@ let init fn t =
 
 let receive t digest buf = Mailbox.push t.mailbox (digest, buf)
 
-let step t = Mailbox.process_message t.mailbox !(t.cont)
+let rec process_matches t elts =
+  Matcher.(
+    match !(t.cont) elts with
+    | Next -> elts
+    | Matched { rest; _ } -> process_matches t rest)
+
+let step t = Mailbox.process_message t.mailbox (process_matches t)
 
 let self_pid { self_pid; _ } = self_pid
 

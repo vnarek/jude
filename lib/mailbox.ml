@@ -9,35 +9,34 @@ module type S = sig
 
   val push : t -> elt -> unit
 
-  val process_message : t -> (elt list -> elt option) -> unit
+  val process_message : t -> (elt list -> elt list) -> unit
 
   val destroy : t -> unit
 end
 
 module Make (O : Set.OrderedType) = struct
-  module Multiset = Multiset.Make (O)
-
   type elt = O.t
 
-  type t = { mutex : Rwlock.t; queue : Multiset.t ref }
+  type t = { mutex : Rwlock.t; queue : elt list ref }
 
   let create () =
     Result.Syntax.(
       let+ mutex = Rwlock.init () in
-      { mutex; queue = ref Multiset.empty })
+      { mutex; queue = ref [] })
 
   let push { mutex; queue } elt =
     Rwlock.wrlock mutex;
-    queue := Multiset.add !queue elt;
+    queue := elt :: !queue;
     Rwlock.wrunlock mutex
 
   let process_message { mutex; queue } fn =
     Rwlock.wrlock mutex;
-    let elts = Multiset.to_list !queue in
+    let elts = !queue in
+    queue := [];
     Rwlock.wrunlock mutex;
-    let o = fn elts in
+    let new_elts = fn elts in
     Rwlock.wrlock mutex;
-    Option.iter (fun el -> queue := Multiset.remove !queue el) o;
+    queue := List.append !queue new_elts;
     Rwlock.wrunlock mutex
 
   let destroy t = Rwlock.destroy t.mutex

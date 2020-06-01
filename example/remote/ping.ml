@@ -16,7 +16,7 @@ let ping () =
           (Matcher.case (module Pong_msg) @@ function
            | Pong (sender_pid, num) ->
                Logs.app (fun m -> m "got PING! ack number: %d" num);
-               Luv.Time.sleep 1000;
+               Luv.Time.sleep 1;
                Arbiter.send sender_pid (module Ping_msg)
                @@ Ping (self_pid, num - 99));
         ])

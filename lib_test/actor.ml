@@ -21,14 +21,17 @@ let create_actor beh =
   t
 
 let test_msg_order_of_matching () =
+  let timed = ref false in
   let test_actor () _ctx =
     Matcher.(
       react
         [
-          case (module Timer) (function Finished -> ());
+          case (module Timer) (function Finished -> timed := true);
           case
             (module Msg)
-            (function Adioso _str -> Alcotest.fail "should take timer first");
+            (function
+              | Adioso _str ->
+                  if not !timed then Alcotest.fail "should take timer first");
         ])
   in
   let t = create_actor (test_actor ()) in
@@ -64,8 +67,6 @@ let test_same_message_count () =
   receive (module Timer) t Finished;
   receive (module Timer) t Finished;
   receive (module Timer) t Finished;
-  Actor.step t;
-  Actor.step t;
   Actor.step t;
   Alcotest.(check int "should equal" 3 !msg_num)
 

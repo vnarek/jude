@@ -1,6 +1,12 @@
 type messages = (string * bytes) list
 
-type t = messages -> (string * bytes) option
+type matched = { matched : string * bytes; rest : messages }
+
+type match_result = 
+    | Matched of matched
+    | Next
+
+type t = messages -> match_result
 
 val case : 'a Binable.m -> ('a -> unit) -> t
 

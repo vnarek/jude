@@ -9,7 +9,7 @@ module type S = sig
 
   val push : t -> elt -> unit
 
-  val process_message : t -> (elt list -> elt option) -> unit
+  val process_message : t -> (elt list -> elt list) -> unit
 
   val destroy : t -> unit
 end

@@ -15,7 +15,7 @@ let pong () ctx =
        | Ping (sender_pid, num) ->
            Arbiter.register ~public:true "dumbledore" sender_pid;
            Logs.app (fun m -> m "got PONG! ack number:%d" num);
-           Luv.Time.sleep 1000;
+           Luv.Time.sleep 1;
            Arbiter.send sender_pid (module Pong_msg)
            @@ Pong (self_pid, 100 + num));
     ]
