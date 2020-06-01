@@ -21,10 +21,16 @@ module Msg = struct
   [@@deriving bin_io]
 end
 
-module Msg_exit = struct
+module Exit_msg = struct
   open Bin_prot.Std
 
   type t = [ `Normal of Pid.t | `Error of string * Pid.t ] [@@deriving bin_io]
+end
+
+module Signal_msg = struct
+  open Bin_prot.Std
+
+  type t = [ `Exception of string * Pid.t ] [@@deriving bin_io]
 end
 
 module Resolution_msg = struct

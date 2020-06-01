@@ -45,8 +45,8 @@ let () =
   let t =
     Supervisor.create ~policy:Supervisor.All_for_one
       [
-        { name = "ping"; public = true; beh = ping 2 };
-        { name = "pong"; public = true; beh = pong () };
+        { name = "ping"; public = true; beh = ping 2; on_error = Abort };
+        { name = "pong"; public = true; beh = pong (); on_error = Abort };
       ]
   in
   let _ = Arbiter.spawn @@ Supervisor.run t in

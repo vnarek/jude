@@ -42,7 +42,7 @@ let rec pong () ctx =
              Logs.app (fun m -> m "got PONG!");
              Luv.Time.sleep 1000;
              Arbiter.send sender_pid (module Ping_msg) (Ping self_pid));
-        (case (module System.Msg_exit) @@ function
+        (case (module System.Exit_msg) @@ function
          | _ ->
              Logs.app (fun m -> m "restarting");
              Actor.become ctx @@ pong ());

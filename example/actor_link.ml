@@ -44,7 +44,7 @@ let pong () ctx =
            Logs.app (fun m -> m "got PONG!");
            Luv.Time.sleep 1000;
            Arbiter.send sender_pid (module Ping_msg) (Ping self_pid));
-      (Matcher.case (module System.Msg_exit) @@ function
+      (Matcher.case (module System.Exit_msg) @@ function
        | `Normal _ -> Logs.app (fun m -> m "normally ended ping")
        | `Error (str, _) ->
            Logs.app (fun m -> m "abruptly ended with message: %s" str);

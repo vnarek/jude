@@ -1,7 +1,14 @@
 module Supervisor (A : Arbiter.ARBITER) = struct
   module String_map = Map.Make (String)
 
-  type recipe = { name : string; public : bool; beh : Actor.beh }
+  type on_error = Continue | Abort
+
+  type recipe = {
+    name : string;
+    public : bool;
+    beh : Actor.beh;
+    on_error : on_error;
+  }
 
   type policy = One_for_one | All_for_one
 
@@ -39,14 +46,7 @@ module Supervisor (A : Arbiter.ARBITER) = struct
         A.exit pid @@ `Normal pid)
       t.running
 
-  let handle_exit t self_pid msg =
-    let old_pid =
-      match msg with
-      | `Normal pid -> pid
-      | `Error (msg, pid) ->
-          Log.debug (fun m -> m "pid %s down reason %s" (Pid.to_string pid) msg);
-          pid
-    in
+  let handle_policy t self_pid old_pid =
     match t.policy with
     | One_for_one ->
         let re = Hashtbl.find t.running old_pid in
@@ -57,11 +57,39 @@ module Supervisor (A : Arbiter.ARBITER) = struct
         exit_all t self_pid;
         init_all t self_pid
 
+  let handle_exit t self_pid msg =
+    let old_pid =
+      match msg with
+      | `Normal pid -> pid
+      | `Error (msg, pid) ->
+          Log.debug (fun m -> m "pid %s down reason %s" (Pid.to_string pid) msg);
+          pid
+    in
+    handle_policy t self_pid old_pid
+
+  let handle_signal t self_pid msg =
+    let old_pid =
+      match msg with
+      | `Exception (msg, pid) ->
+          Log.debug (fun m -> m "pid %s down reason %s" (Pid.to_string pid) msg);
+          pid
+    in
+    Hashtbl.find_opt t.running self_pid
+    |> Option.iter (fun r ->
+           match r.on_error with
+           | Continue -> ()
+           | Abort -> handle_policy t self_pid old_pid)
+
   let run t ctx =
     let self_pid = Actor.self_pid ctx in
     init_all t self_pid;
 
-    Matcher.(react [ case (module System.Msg_exit) @@ handle_exit t self_pid ])
+    Matcher.(
+      react
+        [
+          case (module System.Exit_msg) @@ handle_exit t self_pid;
+          case (module System.Signal_msg) @@ handle_signal t self_pid;
+        ])
 end
 
 module Resolver (A : Arbiter.ARBITER) = struct

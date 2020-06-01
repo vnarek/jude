@@ -26,7 +26,7 @@ module type ARBITER = sig
 
   val resolve_name : string -> Pid.t -> unit
 
-  val exit : Pid.t -> System.Msg_exit.t -> unit
+  val exit : Pid.t -> System.Exit_msg.t -> unit
 
   val monitor : Pid.t -> Pid.t -> unit
 
@@ -193,13 +193,13 @@ module Make (B : Backend.B) : ARBITER = struct
     if count_instance () = 0 then Channel.send arb.actor_ch End
 
   and monitors_on_exit a actor =
-    Actor.monitor_iter (fun p -> send p (module System.Msg_exit) a) actor
+    Actor.monitor_iter (fun p -> send p (module System.Exit_msg) a) actor
 
   and links_on_exit a actor =
     let pid = Actor.self_pid actor in
     if Actor.has_flag actor `Trap_exit then (
       Log.debug (fun m -> m "trapped exit pid: %s" (Pid.to_string pid));
-      send pid (module System.Msg_exit) a )
+      send pid (module System.Exit_msg) a )
     else (
       Log.debug (fun m -> m "exiting pid: %s" (Pid.to_string pid));
       remove_instance_pid pid;
@@ -207,14 +207,22 @@ module Make (B : Backend.B) : ARBITER = struct
       Actor.link_iter (fun p -> exit p a) actor;
       unregister_all pid )
 
+  let monitors_on_signal a actor =
+    Actor.monitor_iter (fun p -> send p (module System.Signal_msg) a) actor
+
+  let signal pid msg =
+    let o = find_instance_pid pid in
+    Option.iter (monitors_on_signal msg) o
+
   let rec actor_loop () =
     match Channel.recv arb.actor_ch with
     | Some End -> Luv.Async.send async_stop |> ignore
     | Some (Step t) ->
         ( try Actor.step t
           with e ->
-            let err = `Error (Printexc.to_string e, Actor.self_pid t) in
-            exit (Actor.self_pid t) err );
+            let self_pid = Actor.self_pid t in
+            let err = `Exception (Printexc.to_string e, self_pid) in
+            signal self_pid err );
         actor_loop ()
     | None -> ()
 

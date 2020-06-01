@@ -2,7 +2,9 @@
 
 (** Module used for supervising actor. It uses monitor primitives.*)
 module Supervisor : functor (_ : Arbiter.ARBITER) -> sig
-  type recipe = { name : string; public : bool; beh : Actor.beh }
+  type on_error = Continue | Abort
+
+  type recipe = { name : string; public : bool; beh : Actor.beh; on_error: on_error }
   (** Recipe which is used for creating *)
 
   type policy =

@@ -26,7 +26,7 @@ module type ARBITER = sig
 
   val resolve_name : string -> Pid.t -> unit
   (** Subscribe to a name. When name is subscribed message is send to [Pid.t]*)
-  val exit : Pid.t -> System.Msg_exit.t -> unit
+  val exit : Pid.t -> System.Exit_msg.t -> unit
   (** Exit autor identified by [Pid.t] with reason in [System.Msg_exit.t] *)
   val monitor : Pid.t -> Pid.t -> unit
   (** Monitor sets unidirectional connection from first pid to the second.
