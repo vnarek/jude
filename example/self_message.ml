@@ -22,7 +22,9 @@ let self_message () ctx =
          | Msg.Second ->
              print_endline "second passed too";
              self_send Msg.Third
-         | Msg.Third -> print_endline "all okay!");
+         | Msg.Third ->
+             print_endline "all okay!";
+             Arbiter.exit self_pid (`Normal self_pid));
       ])
 
 let () =
