@@ -1,17 +1,9 @@
-module Rwlock = Luv.Rwlock
+type 'a t
 
-module type S = sig
-  type elt
+val create : unit -> ('a t, Luv.Error.t) result
 
-  type t
+val push : 'a t -> 'a -> unit
 
-  val create : unit -> (t, Luv.Error.t) result
+val process_message : 'a t -> ('a list -> 'a list) -> unit
 
-  val push : t -> elt -> unit
-
-  val process_message : t -> (elt list -> elt list) -> unit
-
-  val destroy : t -> unit
-end
-
-module Make (O : Set.OrderedType) : S with type elt = O.t
+val destroy : 'a t -> unit

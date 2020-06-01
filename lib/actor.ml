@@ -2,17 +2,9 @@ type 'a set = ('a, unit) Hashtbl.t
 
 type process_flags = [ `Trap_exit ]
 
-module Mailbox = Mailbox.Make (struct
-  type t = string * bytes
-
-  let compare (a1, b1) (a2, b2) =
-    let cmp = String.compare a1 a2 in
-    if cmp == 0 then Bytes.compare b1 b2 else cmp
-end)
-
 type t = {
   self_pid : Pid.t;
-  mailbox : Mailbox.t;
+  mailbox : (string * bytes) Mailbox.t;
   cont : Matcher.t ref;
   links : Pid.t set;
   monitors : Pid.t set;

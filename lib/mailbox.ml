@@ -1,43 +1,25 @@
 module Rwlock = Luv.Rwlock
 
-module type S = sig
-  type elt
+type 'a t = { mutex : Rwlock.t; queue : 'a list ref }
 
-  type t
+let create () =
+  Result.Syntax.(
+    let+ mutex = Rwlock.init () in
+    { mutex; queue = ref [] })
 
-  val create : unit -> (t, Luv.Error.t) result
+let push { mutex; queue } elt =
+  Rwlock.wrlock mutex;
+  queue := elt :: !queue;
+  Rwlock.wrunlock mutex
 
-  val push : t -> elt -> unit
+let process_message { mutex; queue } fn =
+  Rwlock.wrlock mutex;
+  let elts = !queue in
+  queue := [];
+  Rwlock.wrunlock mutex;
+  let new_elts = fn elts in
+  Rwlock.wrlock mutex;
+  queue := List.append !queue new_elts;
+  Rwlock.wrunlock mutex
 
-  val process_message : t -> (elt list -> elt list) -> unit
-
-  val destroy : t -> unit
-end
-
-module Make (O : Set.OrderedType) = struct
-  type elt = O.t
-
-  type t = { mutex : Rwlock.t; queue : elt list ref }
-
-  let create () =
-    Result.Syntax.(
-      let+ mutex = Rwlock.init () in
-      { mutex; queue = ref [] })
-
-  let push { mutex; queue } elt =
-    Rwlock.wrlock mutex;
-    queue := elt :: !queue;
-    Rwlock.wrunlock mutex
-
-  let process_message { mutex; queue } fn =
-    Rwlock.wrlock mutex;
-    let elts = !queue in
-    queue := [];
-    Rwlock.wrunlock mutex;
-    let new_elts = fn elts in
-    Rwlock.wrlock mutex;
-    queue := List.append !queue new_elts;
-    Rwlock.wrunlock mutex
-
-  let destroy t = Rwlock.destroy t.mutex
-end
+let destroy t = Rwlock.destroy t.mutex
