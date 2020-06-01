@@ -1,44 +1,44 @@
 module Rwlock = Luv.Rwlock
 
-let ( let+ ) r f = Result.map f r
+module type S = sig
+  type elt
 
-type 'a t = { mutex : Rwlock.t; queue : 'a list ref }
+  type t
 
-let create () =
-  let+ mutex = Rwlock.init () in
-  { mutex; queue = ref [] }
+  val create : unit -> (t, Luv.Error.t) result
 
-let push { mutex; queue } msg =
-  Rwlock.wrlock mutex;
-  queue := msg :: !queue;
-  Rwlock.wrunlock mutex
+  val push : t -> elt -> unit
 
-let take { mutex; queue } =
-  Rwlock.wrlock mutex;
-  let msg =
-    match !queue with
-    | x :: xs ->
-        queue := xs;
-        Some x
-    | _ -> None
-  in
-  Rwlock.wrunlock mutex;
-  msg
+  val process_message : t -> (elt list -> elt option) -> unit
 
-let process_message { mutex; queue } fn =
-  Rwlock.wrlock mutex;
-  let msgs = !queue in
-  queue := [];
-  Rwlock.wrunlock mutex;
-  let rest = Option.value ~default:msgs (fn msgs) in
-  Rwlock.wrlock mutex;
-  queue := List.append !queue rest;
-  Rwlock.wrunlock mutex
+  val destroy : t -> unit
+end
 
-let filter { mutex; queue } fn =
-  Rwlock.wrlock mutex;
-  let new_list = List.filter (fun m -> not (fn m)) !queue in
-  queue := new_list;
-  Rwlock.wrunlock mutex
+module Make (O : Set.OrderedType) = struct
+  module Multiset = Multiset.Make (O)
 
-let destroy t = Rwlock.destroy t.mutex
+  type elt = O.t
+
+  type t = { mutex : Rwlock.t; queue : Multiset.t ref }
+
+  let create () =
+    Result.Syntax.(
+      let+ mutex = Rwlock.init () in
+      { mutex; queue = ref Multiset.empty })
+
+  let push { mutex; queue } elt =
+    Rwlock.wrlock mutex;
+    queue := Multiset.add !queue elt;
+    Rwlock.wrunlock mutex
+
+  let process_message { mutex; queue } fn =
+    Rwlock.wrlock mutex;
+    let elts = Multiset.to_list !queue in
+    Rwlock.wrunlock mutex;
+    let o = fn elts in
+    Rwlock.wrlock mutex;
+    Option.iter (fun el -> queue := Multiset.remove !queue el) o;
+    Rwlock.wrunlock mutex
+
+  let destroy t = Rwlock.destroy t.mutex
+end

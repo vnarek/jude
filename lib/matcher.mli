@@ -1,6 +1,6 @@
 type messages = (string * bytes) list
 
-type t = messages -> messages option
+type t = messages -> (string * bytes) option
 
 val case : 'a Binable.m -> ('a -> unit) -> t
 
