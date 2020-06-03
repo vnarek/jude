@@ -32,6 +32,12 @@ let rec react (matchers : t list) messages =
       | Next -> react rest messages
       | Matched m -> Matched m )
 
-let sink = function [] -> Next | matched :: rest -> Matched { matched; rest }
+let any fn = function
+  | [] -> Next
+  | matched :: rest ->
+      fn matched;
+      Matched { matched; rest }
+
+let sink = any ignore
 
 let block _ = Next

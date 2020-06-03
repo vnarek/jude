@@ -91,6 +91,21 @@ let test_self_message () =
   Actor.step t;
   Alcotest.(check bool "should equal" true !self_ok)
 
+let test_any_message () =
+  let test_actor () _ctx =
+    Matcher.(
+      react
+        [
+          any ignore;
+          case
+            (module Timer)
+            (function Finished -> Alcotest.fail "should not match timer");
+        ])
+  in
+  let t = create_actor (test_actor ()) in
+  receive (module Msg) t (Adioso "ola!");
+  Actor.step t
+
 let tests =
   [
     ( "actor",
@@ -101,5 +116,6 @@ let tests =
         ( "receiving message recursively should be possible",
           `Quick,
           test_self_message );
+        ("any message should match everytime", `Quick, test_any_message);
       ] );
   ]
