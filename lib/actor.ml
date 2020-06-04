@@ -30,11 +30,8 @@ let init fn t =
 
 let receive t digest buf = Mailbox.push t.mailbox (digest, buf)
 
-let rec process_matches t elts =
-  Matcher.(
-    match !(t.cont) elts with
-    | Next -> elts
-    | Matched { rest; _ } -> process_matches t rest)
+let process_matches t elts =
+  Matcher.(match !(t.cont) elts with Next -> false | Matched -> true)
 
 let step t = Mailbox.process_message t.mailbox (process_matches t)
 
