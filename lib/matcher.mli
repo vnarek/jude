@@ -15,4 +15,5 @@ val sink : t
 (** Matcher that consumes no messages*)
 val block : t
 
+(** Matcher that can react to any message *)
 val any : (string * bytes -> unit) -> t 
