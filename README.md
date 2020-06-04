@@ -28,5 +28,5 @@ dune build @doc
 
 ## Name
 
-Jude was named after a character from the book called "A Little life" because both are
-good actors (hopefully).
+Jude was named after a character from the book called "A Little life" because
+both are good actors (hopefully).

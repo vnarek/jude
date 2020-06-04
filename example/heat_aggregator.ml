@@ -22,21 +22,21 @@ let heat_aggregator ~size _ctx =
   let window = Array.make size 0. in
   let actual = ref 0 in
   let full = ref false in
-  Matcher.(
-    case
-      (module Heat_request)
-      (function
-        | Add_record f ->
-            Logs.app (fun m -> m "%d" !actual);
-            actual := (!actual + 1) mod size;
-            if size - 1 == !actual then full := true;
-            window.(!actual mod size) <- f
-        | Compute_avg pid ->
-            let msg =
-              if !full then Some (sum_arr window /. Int.to_float size) else None
-            in
-            Logs.app (fun m -> m "%d" !actual);
-            Arbiter.send pid (module Heat_reply) msg))
+  let open Matcher in
+  case
+    (module Heat_request)
+    (function
+      | Add_record f ->
+          Logs.app (fun m -> m "%d" !actual);
+          actual := (!actual + 1) mod size;
+          if size - 1 == !actual then full := true;
+          window.(!actual mod size) <- f
+      | Compute_avg pid ->
+          let msg =
+            if !full then Some (sum_arr window /. Int.to_float size) else None
+          in
+          Logs.app (fun m -> m "%d" !actual);
+          Arbiter.send pid (module Heat_reply) msg)
 
 let get_heat ~size pid ctx =
   let self_pid = Actor.self_pid ctx in
