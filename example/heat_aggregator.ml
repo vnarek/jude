@@ -46,12 +46,18 @@ let get_heat ~size pid ctx =
   Matcher.case
     (module Heat_reply)
     (function
-      | None -> Logs.err (fun m -> m "should return some")
-      | Some f -> Logs.app (fun m -> m "result is: %f" f))
+      | None ->
+          Logs.err (fun m ->
+              m "should return some";
+              Arbiter.exit pid (`Normal pid);
+              Arbiter.exit self_pid (`Normal self_pid))
+      | Some f ->
+          Logs.app (fun m -> m "result is: %f" f);
+          Arbiter.exit self_pid (`Normal self_pid))
 
 let () =
   Logs.Src.set_level Jude.Log.src (Some Debug);
   Logs.set_reporter (Logs.format_reporter ());
   let pid = Arbiter.spawn (heat_aggregator ~size:8) in
-  let _ = Arbiter.spawn (get_heat ~size:8 pid) in
+  let _ = Arbiter.spawn_link pid (get_heat ~size:8 pid) in
   Arbiter.run ()
